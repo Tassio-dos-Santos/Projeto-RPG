@@ -1,14 +1,16 @@
 #include <stdio.h>
+#include <conio.h>
 #include <stdlib.h>
 #include <windows.h>
 #include <time.h>
+#include <ctype.h>
 
 #define JOGO
 #define LINKEDLIST
 #define QUEUE
 #include "data_structures.c"
 
-// #define DEBUG
+#define DEBUG
 
 // Constantes
 #define INITIAL_HP 100
@@ -20,8 +22,9 @@ Personagem* player;
 linkedList_t *enemyList, *itemList, *obstacleList;
 queue_t* moveQueue;
 
+int loop();
 char** inicializar_tabuleiro(int N);
-void atualizar_frame();
+void mostrar_tabuleiro();
 void atualizar_posicoes();
 void atualizar_posicoes_de_lista(linkedList_t *lista);
 void gerar_inimigos(int quantidade);
@@ -70,12 +73,12 @@ int main(){
 
     gerar_obstaculos(4);
 
-    mostrar_tabuleiro(board);
+    while(loop());
 
     #endif
 
     #ifdef DEBUG
-    #define BOARDSZ 3
+    #define BOARDSZ 10
     #define PLAYERPOSX 0
     #define PLAYERPOSY 0
 
@@ -87,13 +90,58 @@ int main(){
 
     gerar_inimigos(2);
     gerar_itens(2);
-    gerar_obstaculos(4);
+    gerar_obstaculos(2);
 
-    mostrar_tabuleiro();
+    while(loop());
 
     #endif
 
+    delete_linked_list(enemyList);
+    delete_linked_list(itemList);
+    delete_linked_list(obstacleList);
+    delete_queue(moveQueue);
+
     return 0;
+}
+
+int loop(){
+    atualizar_posicoes();
+    mostrar_tabuleiro(board);
+
+    char acao, direcao;
+    
+    printf("Acao ('M' para movimento, 'A' para ataque, 'Q' para sair do programa): \n");
+    fflush(stdout);
+    
+    while(!_kbhit());
+    acao = _getch();
+    acao = toupper(acao);
+
+    if(acao == 'Q') return 0;
+    if(!(acao == 'M' || acao == 'A')) return 1;
+
+    printf("Direcao ('W' para cima, 'S' para baixo, 'A' para esquerda, 'D' para direita): \n");
+    fflush(stdout);
+
+    while(!_kbhit());
+    direcao = _getch();
+    direcao = toupper(direcao);
+
+    switch (acao)
+    {
+    case 'M':
+        mover_personagem(player, direcao, board, itemList, enemyList);
+        break;
+    
+    case 'A':
+        /* TODO: Função para processar o ataque*/
+        break;
+    
+    default:
+        break;
+    }
+
+    return 1;
 }
 
 char** inicializar_tabuleiro(int N){
@@ -120,12 +168,15 @@ char** inicializar_tabuleiro(int N){
 }
 
 void mostrar_tabuleiro(){
-    printf("\n\n");
+    #ifndef DEBUG
+    system("cls");
+    #endif
+    printf("Vida do personagem: %d \tPontuacao do personagem: %d\n\n", player->vida, player->pontos);
     for(int i = boardSize - 1; i > - 1; i--){
-        for(int j = 0; i < boardSize; j++){
+        for(int j = 0; j < boardSize; j++){
             printf(" %c", board[i][j]);
         }
-        printf("\n");
+        printf("\n\0");
     }
     printf("\n\n");
 }
@@ -154,6 +205,11 @@ void atualizar_posicoes(){
 void atualizar_posicoes_de_lista(linkedList_t *lista){
     // Começa a percorrer a lista pela cabeça da lista
     linkedNode_t* currentNode = lista->head;
+    if(currentNode == NULL){
+        fputs("ERROR - function atualizar_posicoes_de_lista: List head points to NULL\n", stderr);
+        fflush(stderr);
+        return;
+    }
     nodeData_t currentData;
 
     for(int i = 0; i < enemyList->length; i++){
@@ -299,7 +355,101 @@ void mover_personagem(Personagem *p, char direcao, char **tabuleiro, linkedList_
         return;
     }
 
+    int nextPositionX = p->x, nextPositionY = p->y;
+    switch (direcao)
+    {
+    case 'W':
+        nextPositionY++;
+        break;
+    
+    case 'A':
+        nextPositionX--;
+        break;
+    
+    case 'S':
+        nextPositionY--;
+        break;
+    
+    case 'D':
+        nextPositionX++;
+        break;
+    
+    default:
+        break;
+    }
+
+    if(nextPositionX < 0) nextPositionX = 0;
+    if(nextPositionX > boardSize - 1) nextPositionX = boardSize - 1;
+    if(nextPositionY < 0) nextPositionY = 0;
+    if(nextPositionY > boardSize - 1) nextPositionY = boardSize - 1;
+
+    int index;
+
     // Detecção de colisão
+    switch (board[nextPositionY][nextPositionX]){
+    case '-':
+        p->x = nextPositionX;
+        p->y = nextPositionY;
+
+        Movimento newMove = {
+            .acao = 'M',
+            .direcao = direcao
+        };
+
+        enqueue(moveQueue, (nodeData_t) newMove);
+
+        break;
+    
+    case 'E':
+        index = search_position_linked_list(enemyList, nextPositionX, nextPositionY);
+        Inimigo inimigo = search_linked_list(enemyList, index)->data.inimigo;
+
+        #ifdef DEBUG
+        print_enemy(inimigo);
+        #endif
+
+        p->x = nextPositionX;
+        p->y = nextPositionY;
+
+        p->vida -= inimigo.vida;
+
+        remove_linked_list(enemyList, index);
+        break;
+    
+    case 'I':
+        index = search_position_linked_list(itemList, nextPositionX, nextPositionY);
+        Item item = search_linked_list(itemList, index)->data.item;
+
+        #ifdef DEBUG
+        print_item(item);
+        #endif
+
+        p->x = nextPositionX;
+        p->y = nextPositionY;
+
+        p->pontos += item.valor;
+
+        remove_linked_list(itemList, index);
+        break;
+    
+    case 'X':
+        #ifdef DEBUG
+        index = search_position_linked_list(obstacleList, nextPositionX, nextPositionY);
+        Obstaculo obstaculo = search_linked_list(obstacleList, index)->data.obstaculo;
+        print_obstacle(obstaculo);
+        #endif
+        break;
+    
+    case 'P':
+        break;
+
+    default:
+        break;
+    }
+
+}
+
+void coletar_item(){
 
 }
 

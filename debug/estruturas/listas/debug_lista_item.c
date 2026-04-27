@@ -72,6 +72,28 @@ void pesquisar(){
     }
 }
 
+void pesquisarPosicao(){
+    int x, y;
+
+    printf("Digite a posicao x do item: ");
+    fflush(stdout);
+    scanf("%d", &(x));
+
+    printf("Digite a posicao y do item: ");
+    fflush(stdout);
+    scanf("%d", &(y));
+
+    int index = search_position_linked_list(lista, x, y);
+
+    if(index == -1){
+        printf("Nao foi possivel encontrar o item a lista\n");
+        fflush(stdout);
+    }else{
+        printf("O item esta na posicao %d!\n", index + 1);
+        fflush(stdout);
+    }
+}
+
 void imprimirLista(){
     printf("\n----------------- Lista de Itens -----------------\n");
     fflush(stdout);
@@ -96,8 +118,9 @@ int menu(){
     printf("2 - Remover item da lista\n");
     printf("3 - Pesquisar item\n");
     printf("4 - Imprimir lista\n");
-    printf("5 - Excluir lista\n");
-    printf("6 - Sair do sistema\n");
+    printf("5 - Pesquisar item por posicao\n");
+    printf("6 - Excluir lista\n");
+    printf("7 - Sair do sistema\n");
 
     int opcao;
     scanf("%d", &opcao);
@@ -121,13 +144,17 @@ int menu(){
         break;
     
     case 5:
+        pesquisarPosicao();
+        break;
+    
+    case 6:
         excluirLista();
         printf("Volte sempre!\n");
         Sleep(2);
         return 0;
         break;
     
-    case 6:
+    case 7:
         printf("Volte sempre!\n");
         Sleep(2);
         return 0;

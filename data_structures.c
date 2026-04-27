@@ -246,6 +246,7 @@ int remove_linked_list(linkedList_t* list, int index);
 linkedNode_t* search_linked_list(linkedList_t* list, int index);
 int delete_linked_list(linkedList_t* list);
 int search_data_linked_list(linkedList_t* list, nodeData_t data);
+int search_position_linked_list(linkedList_t* list, int x, int y);
 void print_list(linkedList_t* list);
 
 // ---- Métodos Básicos ----
@@ -419,7 +420,7 @@ int remove_linked_list(linkedList_t* list, int index){
     }
     
     // Caso seja o primeiro item da lista
-    else{
+    else if(index == 0){
         // Pega o alvo que está na cabeça da lista
         linkedNode_t* targetNode = list->head;
 
@@ -553,6 +554,64 @@ int search_data_linked_list(linkedList_t* list, nodeData_t data){
 
     return -1;
 }
+
+#ifdef JOGO
+// ------------ Pesquisa por Posição no Tabuleiro ------------
+// Retorna o indíce do nó em caso de sucesso, retorna -1 em caso de fracasso
+int search_position_linked_list(linkedList_t* list, int x, int y){
+    if(list->length < 1){
+        fputs("ERROR - function search_data_linked_list: Empty list\n", stderr);
+        fflush(stderr);
+        return -1;
+    }
+
+    linkedNode_t* currentNode = list->head;
+
+    for(int i = 0; i < list->length; i++){
+        // Se o personagem do nó for igual ao do argumento, retorna o nó atual
+        switch (list->listType)
+        {
+        case CHARACTER_TYPE:
+            if(x == currentNode->data.personagem.x && y == currentNode->data.personagem.y){
+                return i;
+            }
+            break;
+        
+            
+        case ENEMY_TYPE:
+            if(x == currentNode->data.inimigo.x && y == currentNode->data.inimigo.y){
+                return i;
+            }
+            break;
+        
+            
+        case ITEM_TYPE:
+            if(x == currentNode->data.item.x && y == currentNode->data.item.y){
+                return i;
+            }
+            break;
+        
+        case OBSTACLE_TYPE:
+            if(x == currentNode->data.obstaculo.x && y == currentNode->data.obstaculo.y){
+                return i;
+            }
+            break;
+        
+        default:
+            fputs("ERROR - function search_position_linked_list: Invalid list type\n", stderr);
+            fflush(stderr);
+            return -1;
+            break;
+        }
+
+        // Se não passa pro próximo nó
+        currentNode = currentNode->next;
+    }
+
+    return -1;
+}
+
+#endif
 
 // ------------ Impressão da Lista ------------
 // Printa cada item da lista
