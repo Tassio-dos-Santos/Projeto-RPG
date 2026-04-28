@@ -119,7 +119,14 @@ int loop(){
     if(atualizarTabuleiro == 1){
         atualizar_posicoes();
         mostrar_tabuleiro(board);
+    }
 
+    // Caso todos itens forem coletados
+    if(itemList->length < 1){
+        printf("Voce venceu!\n");
+
+        return 0;
+    }else if(atualizarTabuleiro == 1){
         printf("Acao ('WASD' para movimento, 'E' para ataque, 'Q' para sair do programa): \n");
         fflush(stdout);
     }
