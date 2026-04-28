@@ -10,7 +10,7 @@
 #define QUEUE
 #include "data_structures.c"
 
-#define DEBUG
+// #define DEBUG
 
 // Constantes
 #define INITIAL_HP 100
@@ -18,6 +18,7 @@
 // Variáveis globais
 char** board;
 int boardSize;
+int atualizarTabuleiro = 1;
 Personagem* player;
 linkedList_t *enemyList, *itemList, *obstacleList;
 queue_t* moveQueue;
@@ -25,18 +26,19 @@ queue_t* moveQueue;
 int loop();
 char** inicializar_tabuleiro(int N);
 void mostrar_tabuleiro();
-void atualizar_posicoes();
-void atualizar_posicoes_de_lista(linkedList_t *lista);
-void gerar_inimigos(int quantidade);
-void gerar_itens(int quantidade);
-void gerar_obstaculos(int quantidade);
+int atualizar_posicoes();
+int atualizar_posicoes_de_lista(linkedList_t *lista);
+int gerar_inimigos(int quantidade);
+int gerar_itens(int quantidade);
+int gerar_obstaculos(int quantidade);
 Personagem *criar_personagem(int x, int y);
-void adicionar_inimigo(linkedList_t *listaInimigo, int x, int y);
-void adicionar_item(linkedList_t *listaItem, int x, int y, int valor);
-void mover_personagem(Personagem *p, char direcao, char **tabuleiro, linkedList_t *listaItem, linkedList_t *listaInimigo);
-void mover_inimigos(linkedList_t *listaInimigo, char **tabuleiro);
-void processar_comando_fila(queue_t *filaMovimento, Personagem *p, char **tabuleiro);
-void liberar_memoria(char **tabuleiro, Personagem *p, linkedList_t *listaInimigo, linkedList_t *listaItem, queue_t *filaMovimento);
+int adicionar_inimigo(linkedList_t *listaInimigo, int x, int y);
+int adicionar_item(linkedList_t *listaItem, int x, int y, int valor);
+int mover_personagem(Personagem *p, char direcao);
+int combate(Personagem *p, int indexInimigo);
+int coletar_item(Personagem *p, int indexInimigo);
+int mover_inimigos(linkedList_t *listaInimigo, char **tabuleiro);
+int liberar_memoria(char **tabuleiro, Personagem *p, linkedList_t *listaInimigo, linkedList_t *listaItem, linkedList_t *listaObstaculo, queue_t *filaMovimento);
 
 int main(){
     // Inicializa as estruturas de dados
@@ -101,45 +103,95 @@ int main(){
     delete_linked_list(obstacleList);
     delete_queue(moveQueue);
 
-    return 0;
+    return liberar_memoria(board, player, enemyList, itemList, obstacleList, moveQueue);
 }
 
 int loop(){
-    atualizar_posicoes();
-    mostrar_tabuleiro(board);
+    char input;
 
-    char acao, direcao;
-    
-    printf("Acao ('M' para movimento, 'A' para ataque, 'Q' para sair do programa): \n");
-    fflush(stdout);
+    if(atualizarTabuleiro == 1){
+        atualizar_posicoes();
+        mostrar_tabuleiro(board);
+
+        printf("Acao ('WASD' para movimento, 'E' para ataque, 'Q' para sair do programa): \n");
+        fflush(stdout);
+    }
     
     while(!_kbhit());
-    acao = _getch();
-    acao = toupper(acao);
+    input = _getch();
+    input = toupper(input);
 
-    if(acao == 'Q') return 0;
-    if(!(acao == 'M' || acao == 'A')) return 1;
+    switch (input)
+    {
+    case 'Q':
+        return 0;
+        break;
+    
+    case 'W':
+    case 'A':
+    case 'S':
+    case 'D':{
+            int resultadoMovimentacao = mover_personagem(player, input);
 
+            // Caso o movimento não tenha sido realizado por conta de um erro, o loop acaba
+            if(resultadoMovimentacao == 2){
+                fputs("ERROR - function loop: Couldn't move character\n", stderr);
+                fflush(stderr);
+                return 0;
+            }
+            // Caso o movimento não tenha sido realizado porque ele era invalido, não atualiza a tabuleiro
+            else if(resultadoMovimentacao == 1){
+                atualizarTabuleiro = 0;
+            }
+            // Caso o movimento tenha sido realizado, atualiza a tabuleiro
+            else if(resultadoMovimentacao == 0){
+                atualizarTabuleiro = 1;
+            }
+            
+            return 1;
+        }
+    
+    case 'E':
+        break;
+    
+    default:
+        atualizarTabuleiro = 0;
+        return 1;
+        break;
+    }
+
+    // Essa parte do loop só será executada caso seja selecionado ataque
+    
     printf("Direcao ('W' para cima, 'S' para baixo, 'A' para esquerda, 'D' para direita): \n");
     fflush(stdout);
 
     while(!_kbhit());
-    direcao = _getch();
-    direcao = toupper(direcao);
+    input = _getch();
+    input = toupper(input);
 
-    switch (acao)
+    switch (input)
     {
-    case 'M':
-        mover_personagem(player, direcao, board, itemList, enemyList);
+    case 'W':
+        /* TODO: Função para processar o ataque*/
         break;
     
     case 'A':
         /* TODO: Função para processar o ataque*/
         break;
     
+    case 'S':
+        /* TODO: Função para processar o ataque*/
+        break;
+    
+    case 'D':
+        /* TODO: Função para processar o ataque*/
+        break;
+    
     default:
         break;
     }
+
+    atualizarTabuleiro = 1;
 
     return 1;
 }
@@ -167,6 +219,7 @@ char** inicializar_tabuleiro(int N){
     return tabuleiro;
 }
 
+// Limpa a tela e mostrar as informações do personagem e o tabuleiro
 void mostrar_tabuleiro(){
     #ifndef DEBUG
     system("cls");
@@ -181,7 +234,9 @@ void mostrar_tabuleiro(){
     printf("\n\n");
 }
 
-void atualizar_posicoes(){
+// Atualiza o tabuleiro (matriz de caracteres) de acordo com as posições das entidades nas listas
+// Em caso de sucesso retorna 1, em caso de falha retorna 0
+int atualizar_posicoes(){
     // Reseta o tabuleiro
     for(int i = 0; i < boardSize; i++){
         for(int j = 0; j < boardSize; j++){
@@ -193,26 +248,52 @@ void atualizar_posicoes(){
     board[player->y][player->x] = 'P';
     
     // Põe os inimigos no tabuleiro
-    atualizar_posicoes_de_lista(enemyList);
+    if(atualizar_posicoes_de_lista(enemyList) == 0){
+        fputs("ERROR - function atualizar_posicoes: Couldn't update enemies' position\n", stderr);
+        fflush(stderr);
+        return 0;
+    }
 
     // Põe os itens no tabuleiro
-    atualizar_posicoes_de_lista(itemList);
+    if(atualizar_posicoes_de_lista(itemList) == 0){
+        fputs("ERROR - function atualizar_posicoes: Couldn't update items' position\n", stderr);
+        fflush(stderr);
+        return 0;
+    }
 
     // Põe os obstáculos no tabuleiro
-    atualizar_posicoes_de_lista(obstacleList);
+    if(atualizar_posicoes_de_lista(obstacleList) == 0){
+        fputs("ERROR - function atualizar_posicoes: Couldn't update obstacles' position\n", stderr);
+        fflush(stderr);
+        return 0;
+    }
+
+    return 1;
 }
 
-void atualizar_posicoes_de_lista(linkedList_t *lista){
+// Atualiza o tabuleiro (matriz de caracteres) de acordo com as posições das entidades em uma lista específica
+// Em caso de sucesso retorna 1, em caso de falha retorna 0
+int atualizar_posicoes_de_lista(linkedList_t *lista){
+    if(lista == NULL){
+        fputs("ERROR - function atualizar_posicoes_de_lista: Invalid list\n", stderr);
+        fflush(stderr);
+        return 0;
+    }
+
+    if(lista->length < 1){
+        return 1;
+    }
+
     // Começa a percorrer a lista pela cabeça da lista
     linkedNode_t* currentNode = lista->head;
     if(currentNode == NULL){
         fputs("ERROR - function atualizar_posicoes_de_lista: List head points to NULL\n", stderr);
         fflush(stderr);
-        return;
+        return 0;
     }
     nodeData_t currentData;
 
-    for(int i = 0; i < enemyList->length; i++){
+    for(int i = 0; i < lista->length; i++){
         // Define o currentData como o dado no nó atual
         currentData = currentNode->data;
 
@@ -240,7 +321,7 @@ void atualizar_posicoes_de_lista(linkedList_t *lista){
         default:
             fputs("ERROR - function atualizar_posicoes_de_lista: Invalid list type\n", stderr);
             fflush(stderr);
-            return;
+            return 0;
             break;
         }
 
@@ -249,7 +330,9 @@ void atualizar_posicoes_de_lista(linkedList_t *lista){
     }
 }
 
-void gerar_inimigos(int quantidade){
+// Gera inimigos em posições aleatórias na lista de inimigos
+// Em caso de sucesso retorna 1, em caso de falha retorna 0
+int gerar_inimigos(int quantidade){
     Inimigo newEnemy;
     for(int i = 0; i < quantidade; i++){
         int posX, posY;
@@ -259,7 +342,11 @@ void gerar_inimigos(int quantidade){
 
         }while(board[posY][posX] != '-');
 
-        adicionar_inimigo(enemyList, posX, posY);
+        if(adicionar_inimigo(enemyList, posX, posY) == 0){
+            fputs("ERROR - function gerar_inimigos: Couldn't add enemy to the list\n", stderr);
+            fflush(stderr);
+            return 0;
+        }
     }
 
     #ifdef DEBUG
@@ -267,7 +354,9 @@ void gerar_inimigos(int quantidade){
     #endif
 }
 
-void gerar_itens(int quantidade){
+// Gera itens em posições aleatórias na lista de itens
+// Em caso de sucesso retorna 1, em caso de falha retorna 0
+int gerar_itens(int quantidade){
     for(int i = 0; i < quantidade; i++){
         int posX, posY;
 
@@ -279,7 +368,11 @@ void gerar_itens(int quantidade){
             posY = rand() % (boardSize);
         }while(board[posY][posX] != '-');
 
-        adicionar_item(itemList, posX, posY, valor);
+        if(adicionar_item(itemList, posX, posY, valor) == 0){
+            fputs("ERROR - function gerar_itens: Couldn't add item to the list\n", stderr);
+            fflush(stderr);
+            return 0;
+        }
     }
 
     #ifdef DEBUG
@@ -287,18 +380,24 @@ void gerar_itens(int quantidade){
     #endif
 }
 
-void gerar_obstaculos(int quantidade){
+// Gera obstáculos em posições aleatórias na lista de obstáculos
+// Em caso de sucesso retorna 1, em caso de falha retorna 0
+int gerar_obstaculos(int quantidade){
     Obstaculo newObstacle;
     for(int i = 0; i < quantidade; i++){
         // Gera novas posições, até achar uma desocupada
         do{
-        newObstacle.x = rand() % (boardSize);
-        newObstacle.y = rand() % (boardSize);
+            newObstacle.x = rand() % (boardSize);
+            newObstacle.y = rand() % (boardSize);
         }while(board[newObstacle.y][newObstacle.x] != '-');
 
         board[newObstacle.y][newObstacle.x] = 'X';
 
-        insert_linked_list(obstacleList, (nodeData_t) newObstacle, -1);
+        if(insert_linked_list(obstacleList, (nodeData_t) newObstacle, -1) == 0){
+            fputs("ERROR - function gerar_obstaculos: Couldn't add obstacle to the list\n", stderr);
+            fflush(stderr);
+            return 0;
+        }
     }
 
     #ifdef DEBUG
@@ -306,6 +405,8 @@ void gerar_obstaculos(int quantidade){
     #endif
 }
 
+// Cria um personagem na posição especificada
+// Retorna o endereço para o personagem em caso de sucesso e NULL em caso de fracasso
 Personagem *criar_personagem(int x, int y){
     Personagem *personagem_novo = (Personagem *) malloc(sizeof(Personagem));
     if(personagem_novo == NULL){
@@ -325,7 +426,9 @@ Personagem *criar_personagem(int x, int y){
     return personagem_novo;
 }
 
-void adicionar_inimigo(linkedList_t *listaInimigo, int x, int y){
+// Adiciona um inimigo com vida aleatória na posição especificada na lista de inimigos
+// Em caso de sucesso retorna 1, em caso de falha retorna 0
+int adicionar_inimigo(linkedList_t *listaInimigo, int x, int y){
     Inimigo newEnemy = {
         .vida = (rand() + 5) % 51,
         .x = x,
@@ -333,10 +436,16 @@ void adicionar_inimigo(linkedList_t *listaInimigo, int x, int y){
     };
 
     board[newEnemy.y][newEnemy.x] = 'E';
-    insert_linked_list(listaInimigo, (nodeData_t) newEnemy, -1);
+    if(insert_linked_list(listaInimigo, (nodeData_t) newEnemy, -1) == 0){
+        fputs("ERROR - function adicionar_inimigo: Couldn't add enemy to the list\n", stderr);
+        fflush(stderr);
+        return 0;
+    }
 }
 
-void adicionar_item(linkedList_t *listaItem, int x, int y, int valor){
+// Adiciona um item com valor aleatória na posição especificada na lista de itens
+// Em caso de sucesso retorna 1, em caso de falha retorna 0
+int adicionar_item(linkedList_t *listaItem, int x, int y, int valor){
     Item newItem = {
         .valor = valor,
         .x = x,
@@ -345,14 +454,22 @@ void adicionar_item(linkedList_t *listaItem, int x, int y, int valor){
 
     board[newItem.y][newItem.x] = 'I';
 
-    insert_linked_list(listaItem, (nodeData_t) newItem, -1);
+    if(insert_linked_list(listaItem, (nodeData_t) newItem, -1) == 0){
+        fputs("ERROR - function adicionar_item: Couldn't add item to the list\n", stderr);
+        fflush(stderr);
+        return 0;
+    }
 }
 
-void mover_personagem(Personagem *p, char direcao, char **tabuleiro, linkedList_t *listaItem, linkedList_t *listaInimigo){
+// Processa o movimento do player
+// Caso o movimento tenha sido realizado retorna 0,
+// Caso o movimento não tenha sido realizado porque era inválido retorna 1,
+// Caso o movimento não tenha sido realizado por conta de erro em algum processamento retorna 2
+int mover_personagem(Personagem *p, char direcao){
     if(!(direcao == 'W' || direcao == 'A' || direcao == 'S' || direcao == 'D')){
         fputs("ERROR - function mover_personagem: Invalid input\n", stderr);
         fflush(stderr);
-        return;
+        return 1;
     }
 
     int nextPositionX = p->x, nextPositionY = p->y;
@@ -378,45 +495,51 @@ void mover_personagem(Personagem *p, char direcao, char **tabuleiro, linkedList_
         break;
     }
 
-    if(nextPositionX < 0) nextPositionX = 0;
-    if(nextPositionX > boardSize - 1) nextPositionX = boardSize - 1;
-    if(nextPositionY < 0) nextPositionY = 0;
-    if(nextPositionY > boardSize - 1) nextPositionY = boardSize - 1;
+    // Impede que o player saia dos limites do tabuleiro
+    if(
+        nextPositionX < 0 || 
+        nextPositionX > boardSize - 1 ||
+        nextPositionY < 0 ||
+        nextPositionY > boardSize - 1
+    ) return 1;
 
     int index;
 
     // Detecção de colisão
     switch (board[nextPositionY][nextPositionX]){
     case '-':
-        p->x = nextPositionX;
-        p->y = nextPositionY;
-
-        Movimento newMove = {
-            .acao = 'M',
-            .direcao = direcao
-        };
-
-        enqueue(moveQueue, (nodeData_t) newMove);
+        
 
         break;
     
     case 'E':
         index = search_position_linked_list(enemyList, nextPositionX, nextPositionY);
-        Inimigo inimigo = search_linked_list(enemyList, index)->data.inimigo;
-
-        #ifdef DEBUG
-        print_enemy(inimigo);
-        #endif
-
-        p->x = nextPositionX;
-        p->y = nextPositionY;
-
-        p->vida -= inimigo.vida;
-
-        remove_linked_list(enemyList, index);
+        if(index == -1){
+            fputs("ERROR - function mover_personagem: Couldn't find enemy in the list\n", stderr);
+            fflush(stderr);
+            return 2;
+        }
+        if(combate(p, index) == 0){
+            fputs("ERROR - function mover_personagem: Couldn't process combat\n", stderr);
+            fflush(stderr);
+            return 2;
+        }
         break;
     
     case 'I':
+        index = search_position_linked_list(itemList, nextPositionX, nextPositionY);
+        if(index == -1){
+            fputs("ERROR - function mover_personagem: Couldn't find item in the list\n", stderr);
+            fflush(stderr);
+            return 2;
+        }
+        if(coletar_item(p, index) == 0){
+            fputs("ERROR - function mover_personagem: Couldn't process item colection\n", stderr);
+            fflush(stderr);
+            return 2;
+        }
+
+        /*
         index = search_position_linked_list(itemList, nextPositionX, nextPositionY);
         Item item = search_linked_list(itemList, index)->data.item;
 
@@ -430,6 +553,7 @@ void mover_personagem(Personagem *p, char direcao, char **tabuleiro, linkedList_
         p->pontos += item.valor;
 
         remove_linked_list(itemList, index);
+        */
         break;
     
     case 'X':
@@ -438,29 +562,124 @@ void mover_personagem(Personagem *p, char direcao, char **tabuleiro, linkedList_
         Obstaculo obstaculo = search_linked_list(obstacleList, index)->data.obstaculo;
         print_obstacle(obstaculo);
         #endif
+
+        return 1;
         break;
     
     case 'P':
+        return 1;
         break;
 
     default:
+        return 1;
         break;
     }
 
+    // Se chegou até essa parte do código (não passou por return), o movimento é executado
+
+    p->x = nextPositionX;
+    p->y = nextPositionY;
+
+    Movimento newMove = {
+        .acao = 'M',
+        .direcao = direcao
+    };
+
+    enqueue(moveQueue, (nodeData_t) newMove);
+
+    return 0;
 }
 
-void coletar_item(){
+// Processa o combate entre o player e um inimigo
+// Em caso de sucesso retorna 1, em caso de fracasso retorna 0
+int combate(Personagem *p, int indexInimigo){
+    linkedNode_t* noInimigo = search_linked_list(enemyList, indexInimigo);
+    if(noInimigo == NULL){
+        fputs("ERROR - function combate: Couldn't find enemy in the list\n", stderr);
+        fflush(stderr);
+        return 0;
+    }
+    Inimigo inimigo = noInimigo->data.inimigo;
+
+    if(remove_linked_list(enemyList, indexInimigo) == 0){
+        fputs("ERROR - function combate: Couldn't remove enemy from list\n", stderr);
+        fflush(stderr);
+        return 0;
+    }
+
+    p->vida -= inimigo.vida;
+
+    #ifdef DEBUG
+    print_list(enemyList);
+    #endif
+
+    return 1;
+}
+
+// Processa a coleta de um item
+// Em caso de sucesso retorna 1, em caso de fracasso retorna 0
+int coletar_item(Personagem *p, int indexItem){
+    linkedNode_t* noItem = search_linked_list(itemList, indexItem);
+    if(noItem == NULL){
+        fputs("ERROR - function coletar_item: Couldn't find item in the list\n", stderr);
+        fflush(stderr);
+        return 0;
+    }
+    Item item = noItem->data.item;
+
+    if(remove_linked_list(itemList, indexItem) == 0){
+        fputs("ERROR - function coletar_item: Couldn't remove item from list\n", stderr);
+        fflush(stderr);
+        return 0;
+    }
+
+    p->pontos += item.valor;
+
+    #ifdef DEBUG
+    print_list(itemList);
+    #endif
+
+    return 1;
+}
+
+int mover_inimigos(linkedList_t *listaInimigo, char **tabuleiro){
 
 }
 
-void mover_inimigos(linkedList_t *listaInimigo, char **tabuleiro){
+// Libera toda memória dinamicamente alocada pelo programa
+// Em caso de sucesso retorna 0, em caso de fracasso retorna 1
+int liberar_memoria(char **tabuleiro, Personagem *p, linkedList_t *listaInimigo, linkedList_t *listaItem, linkedList_t *listaObstaculo, queue_t *filaMovimento){
+    free(p);
 
-}
+    if(delete_linked_list(enemyList) == 0){
+        fputs("ERROR - function liberar_memoria: Couldn't delete enemy list\n", stderr);
+        fflush(stderr);
+        return 1;
+    }
 
-void processar_comando_fila(queue_t *filaMovimento, Personagem *p, char **tabuleiro){
+    if(delete_linked_list(itemList) == 0){
+        fputs("ERROR - function liberar_memoria: Couldn't delete item list\n", stderr);
+        fflush(stderr);
+        return 1;
+    }
 
-}
+    if(delete_linked_list(obstacleList) == 0){
+        fputs("ERROR - function liberar_memoria: Couldn't delete obstacle list\n", stderr);
+        fflush(stderr);
+        return 1;
+    }
 
-void liberar_memoria(char **tabuleiro, Personagem *p, linkedList_t *listaInimigo, linkedList_t *listaItem, queue_t *filaMovimento){
+    if(delete_queue(moveQueue) == 0){
+        fputs("ERROR - function liberar_memoria: Couldn't delete move queue\n", stderr);
+        fflush(stderr);
+        return 1;
+    }
 
+    for(int i = 0; i < boardSize; i++){
+        free(tabuleiro[i]);
+    }
+
+    free(tabuleiro);
+
+    return 0;
 }
