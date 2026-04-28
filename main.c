@@ -23,6 +23,8 @@ Personagem* player;
 linkedList_t *enemyList, *itemList, *obstacleList;
 queue_t* moveQueue;
 
+FILE* log_file;
+
 int loop();
 char** inicializar_tabuleiro(int N);
 void mostrar_tabuleiro();
@@ -38,7 +40,12 @@ int mover_personagem(Personagem *p, char direcao);
 int combate(Personagem *p, int indexInimigo);
 int coletar_item(Personagem *p, int indexInimigo);
 int mover_inimigos(linkedList_t *listaInimigo, char **tabuleiro);
-int liberar_memoria(char **tabuleiro, Personagem *p, linkedList_t *listaInimigo, linkedList_t *listaItem, linkedList_t *listaObstaculo, queue_t *filaMovimento);
+int adicionar_comando_fila(queue_t *fila, char acao, char direcao);
+int processar_comando_fila(queue_t *fila);
+int log_action(FILE *logFile, Movimento m);
+int log_item_collected(FILE *logFile, Item i);
+int log_combat(FILE *logFile, Inimigo i);
+int liberar_memoria(char **tabuleiro, Personagem *p, linkedList_t *listaInimigo, linkedList_t *listaItem, linkedList_t *listaObstaculo, queue_t *filaMovimento, FILE *logFile);
 
 int main(){
     // Inicializa as estruturas de dados
@@ -47,8 +54,13 @@ int main(){
     obstacleList = create_linked_list(OBSTACLE_TYPE);
     moveQueue = create_queue(MOVE_TYPE);
 
+    // Inicializa o arquivo de log
+    log_file = fopen("log.txt", "w");
+
     // Inicializa os números aleatórios
     srand(time(NULL));
+
+    system("cls");
 
     #ifndef DEBUG
     printf("Digite o numeros de linhas e colunas do tabuleiro: ");
@@ -98,12 +110,7 @@ int main(){
 
     #endif
 
-    delete_linked_list(enemyList);
-    delete_linked_list(itemList);
-    delete_linked_list(obstacleList);
-    delete_queue(moveQueue);
-
-    return liberar_memoria(board, player, enemyList, itemList, obstacleList, moveQueue);
+    return liberar_memoria(board, player, enemyList, itemList, obstacleList, moveQueue, log_file);
 }
 
 int loop(){
@@ -131,7 +138,13 @@ int loop(){
     case 'A':
     case 'S':
     case 'D':{
-            int resultadoMovimentacao = mover_personagem(player, input);
+            if(adicionar_comando_fila(moveQueue, 'M', input) == 0){
+                fputs("ERROR - function loop: Couldn't add move into queue\n", stderr);
+                fflush(stderr);
+                return 0;
+            }
+
+            int resultadoMovimentacao = processar_comando_fila(moveQueue);
 
             // Caso o movimento não tenha sido realizado por conta de um erro, o loop acaba
             if(resultadoMovimentacao == 2){
@@ -580,13 +593,6 @@ int mover_personagem(Personagem *p, char direcao){
     p->x = nextPositionX;
     p->y = nextPositionY;
 
-    Movimento newMove = {
-        .acao = 'M',
-        .direcao = direcao
-    };
-
-    enqueue(moveQueue, (nodeData_t) newMove);
-
     return 0;
 }
 
@@ -608,6 +614,7 @@ int combate(Personagem *p, int indexInimigo){
     }
 
     p->vida -= inimigo.vida;
+    log_combat(log_file, inimigo);
 
     #ifdef DEBUG
     print_list(enemyList);
@@ -634,6 +641,7 @@ int coletar_item(Personagem *p, int indexItem){
     }
 
     p->pontos += item.valor;
+    log_item_collected(log_file, item);
 
     #ifdef DEBUG
     print_list(itemList);
@@ -646,9 +654,148 @@ int mover_inimigos(linkedList_t *listaInimigo, char **tabuleiro){
 
 }
 
+// Adiciona um movimento especificado na fila
+// Em caso de sucesso retorna 1, em caso de falha retorna 0 
+int adicionar_comando_fila(queue_t *fila, char acao, char direcao){
+    Movimento m = {
+        .acao = acao,
+        .direcao = direcao
+    };
+
+    if(enqueue(fila, (nodeData_t) m) == 0){
+        fputs("ERROR - function adicionar_comando_fila: Couldn't enqueue move\n", stderr);
+        fflush(stderr);
+        return 0;
+    }
+
+    return 1;
+}
+
+// Processa o próximo movimento na fila
+// Em caso do movimento ser realizado, retorna 0
+// Em caso do movimento não ser realizado por ser inválido, retorna 1
+// Em caso do movimento não ser realizado por ter ocorrido erro, retorna 2
+int processar_comando_fila(queue_t *fila){
+    if(fila->length > 1){
+        fputs("ERROR - function processar_comando_fila: Empty queue\n", stderr);
+        fflush(stderr);
+        return 2;
+    }
+
+    nodeData_t movimentoData = dequeue(fila);
+    if(isDataEmpty(movimentoData) == 1){
+        fputs("ERROR - function processar_comando_fila: Couldn't get next move\n", stderr);
+        fflush(stderr);
+        return 2;
+    }
+
+    Movimento m = movimentoData.movimento;
+
+    switch (m.acao)
+    {
+    case 'M':
+        {
+            int result = mover_personagem(player, m.direcao);
+
+            if(result == 0){
+                log_action(log_file, m);
+            }
+
+            return result;
+
+            break;
+        }
+    case 'E':
+        /* code */
+        break;
+    
+    default:
+        return 1;
+
+        break;
+    }
+
+    return 0;
+}
+
+// Loga um movimento num arquivo de log especificado
+// Em caso de sucesso retorna 1, em caso de falha retorna 0 
+int log_action(FILE *logFile, Movimento m){
+    if(logFile == NULL){
+        fputs("ERROR - function log_action: Invalid file stream\n", stderr);
+        fflush(stderr);
+        return 0;
+    }
+
+    time_t now = time(NULL);
+    struct tm *local = localtime(&now);
+    char timeString[80];
+    strftime(timeString, sizeof(timeString), "%Y-%m-%d %H:%M:%S", local);
+
+    int result = fprintf(logFile, "\n%s\tAcao: %c\tDirecao: %c\n", timeString, m.acao, m.direcao);
+
+    if(result == -1){
+        fputs("ERROR - function log_action: Couldn't write log\n", stderr);
+        fflush(stderr);
+        return 0;
+    }
+
+    return 1;
+}
+
+// Loga um item coletado num arquivo de log especificado
+// Em caso de sucesso retorna 1, em caso de falha retorna 0 
+int log_item_collected(FILE *logFile, Item i){
+    if(logFile == NULL){
+        fputs("ERROR - function log_item_collected: Invalid file stream\n", stderr);
+        fflush(stderr);
+        return 0;
+    }
+
+    time_t now = time(NULL);
+    struct tm *local = localtime(&now);
+    char timeString[80];
+    strftime(timeString, sizeof(timeString), "%Y-%m-%d %H:%M:%S", local);
+
+    int result = fprintf(logFile, "\n%s\tItem coletado\tValor: %d\tPosicao: [%d, %d]\n", timeString, i.valor, i.x, i.y);
+
+    if(result == -1){
+        fputs("ERROR - function log_item_collected: Couldn't write log\n", stderr);
+        fflush(stderr);
+        return 0;
+    }
+
+    return 1;
+}
+
+// Loga um combate num arquivo de log especificado
+// Em caso de sucesso retorna 1, em caso de falha retorna 0 
+int log_combat(FILE *logFile, Inimigo i){
+    if(logFile == NULL){
+        fputs("ERROR - function log_combat: Invalid file stream\n", stderr);
+        fflush(stderr);
+        return 0;
+    }
+
+    time_t now = time(NULL);
+    struct tm *local = localtime(&now);
+    char timeString[80];
+    strftime(timeString, sizeof(timeString), "%Y-%m-%d %H:%M:%S", local);
+
+    int result = fprintf(logFile, "\n%s\tInimigo combatido\tVida: %d\tPosicao: [%d, %d]\n", timeString, i.vida, i.x, i.y);
+
+    if(result == -1){
+        fputs("ERROR - function log_combat: Couldn't write log\n", stderr);
+        fflush(stderr);
+        return 0;
+    }
+
+    return 1;
+}
+
 // Libera toda memória dinamicamente alocada pelo programa
 // Em caso de sucesso retorna 0, em caso de fracasso retorna 1
-int liberar_memoria(char **tabuleiro, Personagem *p, linkedList_t *listaInimigo, linkedList_t *listaItem, linkedList_t *listaObstaculo, queue_t *filaMovimento){
+int liberar_memoria(char **tabuleiro, Personagem *p, linkedList_t *listaInimigo, linkedList_t *listaItem, linkedList_t *listaObstaculo, queue_t *filaMovimento, FILE *logFile){
     free(p);
 
     if(delete_linked_list(enemyList) == 0){
@@ -680,6 +827,12 @@ int liberar_memoria(char **tabuleiro, Personagem *p, linkedList_t *listaInimigo,
     }
 
     free(tabuleiro);
+
+    if(fclose(logFile) == EOF){
+        fputs("ERROR - function liberar_memoria: Couldn't close log file\n", stderr);
+        fflush(stderr);
+        return 1;
+    }
 
     return 0;
 }
