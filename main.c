@@ -4,6 +4,7 @@
 #include <windows.h>
 #include <time.h>
 #include <ctype.h>
+#include <pthread.h>
 
 #define JOGO
 #define LINKEDLIST
@@ -14,11 +15,14 @@
 
 // Constantes
 #define INITIAL_HP 100
+#define INIMIGOS 1
+#define ITENS 1
+#define OBSTACULOS 1
 
 // Variáveis globais
 char** board;
 int boardSize;
-int atualizarTabuleiro = 1;
+//int atualizarTabuleiro = 1;
 Personagem* player;
 linkedList_t *enemyList, *itemList, *obstacleList;
 queue_t* moveQueue;
@@ -39,7 +43,9 @@ int adicionar_item(linkedList_t *listaItem, int x, int y, int valor);
 int mover_personagem(Personagem *p, char direcao);
 int combate(Personagem *p, int indexInimigo);
 int coletar_item(Personagem *p, int indexInimigo);
-int mover_inimigos(linkedList_t *listaInimigo, char **tabuleiro);
+int mover_inimigos();
+int mover_inimigo(int indexInimigo);
+char movimento_aleatorio();
 int adicionar_comando_fila(queue_t *fila, char acao, char direcao);
 int processar_comando_fila(queue_t *fila);
 int log_action(FILE *logFile, Movimento m);
@@ -81,11 +87,11 @@ int main(){
 
     player = criar_personagem(posicao[0], posicao[1]);
 
-    gerar_inimigos(3);
+    gerar_inimigos(INIMIGOS);
 
-    gerar_itens(5);
+    gerar_itens(ITENS);
 
-    gerar_obstaculos(4);
+    gerar_obstaculos(OBSTACULOS);
 
     while(loop());
 
@@ -102,9 +108,9 @@ int main(){
 
     player = criar_personagem(PLAYERPOSX, PLAYERPOSY);
 
-    gerar_inimigos(2);
-    gerar_itens(2);
-    gerar_obstaculos(2);
+    gerar_inimigos(INIMIGOS);
+    gerar_itens(ITENS);
+    gerar_obstaculos(OBSTACULOS);
 
     while(loop());
 
@@ -116,20 +122,30 @@ int main(){
 int loop(){
     char input;
 
-    if(atualizarTabuleiro == 1){
-        atualizar_posicoes();
-        mostrar_tabuleiro(board);
+    if(atualizar_posicoes() == 0){
+        fputs("ERROR - function loop: Couldn't update positions\n", stderr);
+        fflush(stderr);
+        return 0;
     }
+    mostrar_tabuleiro(board);
+
 
     // Caso todos itens forem coletados
     if(itemList->length < 1){
         printf("Voce venceu!\n");
 
         return 0;
-    }else if(atualizarTabuleiro == 1){
-        printf("Acao ('WASD' para movimento, 'E' para ataque, 'Q' para sair do programa): \n");
-        fflush(stdout);
     }
+    // Caso o player esteja morto, o jogo acaba
+    if(player->vida < 1){
+        printf("Voce perdeu.\n");
+
+        return 0;
+    }
+    
+    printf("Acao ('WASD' para movimento, 'E' para ataque, 'Q' para sair do programa): \n");
+    fflush(stdout);
+
     
     while(!_kbhit());
     input = _getch();
@@ -151,21 +167,33 @@ int loop(){
                 return 0;
             }
 
-            int resultadoMovimentacao = processar_comando_fila(moveQueue);
+            int movimento_player = processar_comando_fila(moveQueue);
 
             // Caso o movimento não tenha sido realizado por conta de um erro, o loop acaba
-            if(resultadoMovimentacao == 2){
+            if(movimento_player == -1){
                 fputs("ERROR - function loop: Couldn't move character\n", stderr);
                 fflush(stderr);
                 return 0;
             }
             // Caso o movimento não tenha sido realizado porque ele era invalido, não atualiza a tabuleiro
-            else if(resultadoMovimentacao == 1){
-                atualizarTabuleiro = 0;
+            else if(movimento_player == 1){
+                //atualizarTabuleiro = 0;
+            }
+            // Caso o player morra, o jogo acaba
+            else if(movimento_player == 2){
+                return 1;
             }
             // Caso o movimento tenha sido realizado, atualiza a tabuleiro
-            else if(resultadoMovimentacao == 0){
-                atualizarTabuleiro = 1;
+            else if(movimento_player == 0){
+                //atualizarTabuleiro = 1;
+            }
+
+            int movimento_inimigos = mover_inimigos();
+
+            if(movimento_inimigos == -1){
+                fputs("ERROR - function loop: Couldn't move enemies\n", stderr);
+                fflush(stderr);
+                return 0;
             }
             
             return 1;
@@ -175,7 +203,7 @@ int loop(){
         break;
     
     default:
-        atualizarTabuleiro = 0;
+        //atualizarTabuleiro = 0;
         return 1;
         break;
     }
@@ -211,7 +239,13 @@ int loop(){
         break;
     }
 
-    atualizarTabuleiro = 1;
+    //atualizarTabuleiro = 1;
+
+    if(mover_inimigos() == -1){
+        fputs("ERROR - function loop: Couldn't move enemies\n", stderr);
+        fflush(stderr);
+        return 0;
+    }
 
     return 1;
 }
@@ -482,9 +516,10 @@ int adicionar_item(linkedList_t *listaItem, int x, int y, int valor){
 }
 
 // Processa o movimento do player
+// Caso o movimento não tenha sido realizado por conta de erro em algum processamento retorna -1,
 // Caso o movimento tenha sido realizado retorna 0,
 // Caso o movimento não tenha sido realizado porque era inválido retorna 1,
-// Caso o movimento não tenha sido realizado por conta de erro em algum processamento retorna 2
+// Caso o movimento não tenha sido realizado porque o player morreu retorna 2
 int mover_personagem(Personagem *p, char direcao){
     if(!(direcao == 'W' || direcao == 'A' || direcao == 'S' || direcao == 'D')){
         fputs("ERROR - function mover_personagem: Invalid input\n", stderr);
@@ -523,73 +558,63 @@ int mover_personagem(Personagem *p, char direcao){
         nextPositionY > boardSize - 1
     ) return 1;
 
-    int index;
-
     // Detecção de colisão
     switch (board[nextPositionY][nextPositionX]){
     case '-':
-        
-
         break;
     
     case 'E':
-        index = search_position_linked_list(enemyList, nextPositionX, nextPositionY);
+    {
+        int index = search_position_linked_list(enemyList, nextPositionX, nextPositionY);
         if(index == -1){
             fputs("ERROR - function mover_personagem: Couldn't find enemy in the list\n", stderr);
             fflush(stderr);
-            return 2;
+            return -1;
         }
-        if(combate(p, index) == 0){
+
+        int resultado_combate = combate(p, index);
+        if(resultado_combate == -1){
             fputs("ERROR - function mover_personagem: Couldn't process combat\n", stderr);
             fflush(stderr);
+            return -1;
+        }
+
+        // Inimigo não morreu
+        else if(resultado_combate == 0){
+            return 1;
+        }
+
+        // Player morreu
+        else if(resultado_combate == 2){
             return 2;
         }
+
+        // Caso só inimigo morreu, continua
         break;
-    
+    }
     case 'I':
-        index = search_position_linked_list(itemList, nextPositionX, nextPositionY);
+    {
+        int index = search_position_linked_list(itemList, nextPositionX, nextPositionY);
         if(index == -1){
             fputs("ERROR - function mover_personagem: Couldn't find item in the list\n", stderr);
             fflush(stderr);
-            return 2;
+            return -1;
         }
         if(coletar_item(p, index) == 0){
             fputs("ERROR - function mover_personagem: Couldn't process item colection\n", stderr);
             fflush(stderr);
-            return 2;
+            return -1;
         }
 
-        /*
-        index = search_position_linked_list(itemList, nextPositionX, nextPositionY);
-        Item item = search_linked_list(itemList, index)->data.item;
-
-        #ifdef DEBUG
-        print_item(item);
-        #endif
-
-        p->x = nextPositionX;
-        p->y = nextPositionY;
-
-        p->pontos += item.valor;
-
-        remove_linked_list(itemList, index);
-        */
         break;
-    
+    }
     case 'X':
         #ifdef DEBUG
         index = search_position_linked_list(obstacleList, nextPositionX, nextPositionY);
         Obstaculo obstaculo = search_linked_list(obstacleList, index)->data.obstaculo;
         print_obstacle(obstaculo);
         #endif
-
-        return 1;
-        break;
-    
     case 'P':
-        return 1;
-        break;
-
     default:
         return 1;
         break;
@@ -600,28 +625,58 @@ int mover_personagem(Personagem *p, char direcao){
     p->x = nextPositionX;
     p->y = nextPositionY;
 
+    if(atualizar_posicoes() == 0){
+        fputs("ERROR - function mover_personagem: Couldn't update positions\n", stderr);
+        fflush(stderr);
+        return -1;
+    }
+
     return 0;
 }
 
 // Processa o combate entre o player e um inimigo
-// Em caso de sucesso retorna 1, em caso de fracasso retorna 0
+// Caso ninguém morra, retorna 0
+// Caso o inimigo morra, retorna 1
+// Caso o player morra, retorna 2
+// Caso dê erro, retorna -1
 int combate(Personagem *p, int indexInimigo){
     linkedNode_t* noInimigo = search_linked_list(enemyList, indexInimigo);
     if(noInimigo == NULL){
         fputs("ERROR - function combate: Couldn't find enemy in the list\n", stderr);
         fflush(stderr);
-        return 0;
+        return -1;
     }
+
+    p->vida -= 10;
+    noInimigo->data.inimigo.vida -= 20;
+
     Inimigo inimigo = noInimigo->data.inimigo;
 
-    if(remove_linked_list(enemyList, indexInimigo) == 0){
-        fputs("ERROR - function combate: Couldn't remove enemy from list\n", stderr);
-        fflush(stderr);
-        return 0;
+    log_combat(log_file, inimigo);
+
+    // Caso o inimigo morra, já o deleta da lista
+    if(inimigo.vida <= 0){
+        if(remove_linked_list(enemyList, indexInimigo) == 0){
+            fputs("ERROR - function combate: Couldn't remove enemy from list\n", stderr);
+            fflush(stderr);
+            return -1;
+        }
     }
 
-    p->vida -= inimigo.vida;
-    log_combat(log_file, inimigo);
+    // Caso os dois fiquem vivos
+    if(p->vida > 0 && inimigo.vida > 0){
+        return 0;
+    }
+    
+    // Caso o player morra
+    else if(p->vida <= 0){
+        return 2;
+    }
+
+    // Caso só o inimigo morra
+    else{
+        return 1;
+    }
 
     #ifdef DEBUG
     print_list(enemyList);
@@ -657,8 +712,150 @@ int coletar_item(Personagem *p, int indexItem){
     return 1;
 }
 
-int mover_inimigos(linkedList_t *listaInimigo, char **tabuleiro){
+// Processa o movimento dos inimigos
+// Caso os movimentos não tenham sido realizados por conta de erro em algum processamento retorna -1,
+// Caso os movimentos tenham sido realizados retorna 0,
+// Caso o player morra retorna 1
+int mover_inimigos(){
+    if(enemyList->length == 0) return 0;
 
+    for(int i = 0; i < enemyList->length; i++){
+        int resultado_movimento = mover_inimigo(i);
+
+        if(resultado_movimento == -1){
+            fputs("ERROR - function mover_inimigos: Couldn't move enemy\n", stderr);
+            fflush(stderr);
+            return -1;
+        }
+
+        else if(resultado_movimento == 3){
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+// Processa o movimento de um inimigo específico
+// Caso o movimento não tenha sido realizado por conta de erro em algum processamento retorna -1,
+// Caso o movimento tenha sido realizado retorna 0,
+// Caso o movimento não tenha sido realizado porque era inválido retorna 1,
+// Caso o movimento não tenha sido realizado porque o inimigo morreu retorna 2
+// Caso o movimento tenha sido realizado mas o player morreu retorna 3
+int mover_inimigo(int indexInimigo){
+    linkedNode_t *noInimigo = search_linked_list(enemyList, indexInimigo);
+
+    if(noInimigo == NULL){
+        fputs("ERROR - function mover_inimigo: Invalid argument\n", stderr);
+        fflush(stderr);
+        return -1;
+    }
+
+    Inimigo inimigo = noInimigo->data.inimigo;
+
+    int nextPositionX = inimigo.x, nextPositionY = inimigo.y;
+
+    // Lógica de decisão de movimento
+    char direcao;
+    direcao = movimento_aleatorio();
+
+
+    switch (direcao)
+    {
+    case 'W':
+        nextPositionY++;
+        break;
+    
+    case 'A':
+        nextPositionX--;
+        break;
+    
+    case 'S':
+        nextPositionY--;
+        break;
+    
+    case 'D':
+        nextPositionX++;
+        break;
+    
+    default:
+        break;
+    }
+
+    // Impede que o inimigo saia dos limites do tabuleiro
+    if(
+        nextPositionX < 0 || 
+        nextPositionX > boardSize - 1 ||
+        nextPositionY < 0 ||
+        nextPositionY > boardSize - 1
+    ) return 1;
+
+    // Detecção de colisão
+    switch (board[nextPositionY][nextPositionX]){
+    case '-':
+        noInimigo->data.inimigo.x = nextPositionX;
+        noInimigo->data.inimigo.y = nextPositionY;
+
+        if(atualizar_posicoes() == 0){
+            fputs("ERROR - function mover_inimigo: Couldn't update positions\n", stderr);
+            fflush(stderr);
+            return -1;
+        }
+
+        return 0;
+
+        break;
+    
+    case 'P':
+    {
+        int resultado_combate = combate(player, indexInimigo);
+        if(resultado_combate == -1){
+            fputs("ERROR - function mover_inimigo: Couldn't process combat\n", stderr);
+            fflush(stderr);
+            return -1;
+        }
+
+        // Caso ninguém morra
+        else if(resultado_combate == 0){
+            return 1;
+        }
+
+        // Caso o inimigo morra
+        else if(resultado_combate == 1){
+            return 2;
+        }
+
+        // Caso o player morra
+        else if(resultado_combate == 2){
+            noInimigo->data.inimigo.x = nextPositionX;
+            noInimigo->data.inimigo.y = nextPositionY;
+
+            if(atualizar_posicoes() == 0){
+                fputs("ERROR - function mover_inimigo: Couldn't update positions\n", stderr);
+                fflush(stderr);
+                return -1;
+            }
+
+            return 3;
+        }
+
+        break;
+    }
+
+    case 'E':
+    case 'I':
+    case 'X':
+    default:
+        return 1;
+        break;
+    }
+}
+
+char movimento_aleatorio(){
+    const char *movimentos_possiveis = "WASD";
+    int quantidade_movimentos = strlen(movimentos_possiveis);
+    int indice = rand() % quantidade_movimentos;
+    return movimentos_possiveis[indice];
 }
 
 // Adiciona um movimento especificado na fila
@@ -679,9 +876,10 @@ int adicionar_comando_fila(queue_t *fila, char acao, char direcao){
 }
 
 // Processa o próximo movimento na fila
+// Em caso do movimento não ser realizado por ter ocorrido erro, retorna -1
 // Em caso do movimento ser realizado, retorna 0
 // Em caso do movimento não ser realizado por ser inválido, retorna 1
-// Em caso do movimento não ser realizado por ter ocorrido erro, retorna 2
+// Em caso do movimento não ser realizado porque o player morreu, retorna 2
 int processar_comando_fila(queue_t *fila){
     if(fila->length > 1){
         fputs("ERROR - function processar_comando_fila: Empty queue\n", stderr);
