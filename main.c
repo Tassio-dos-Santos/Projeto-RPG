@@ -143,8 +143,8 @@ int loop(){
     mostrar_tabuleiro(board);
 
 
-    // Caso todos itens forem coletados
-    if(itemList->length < 1){
+    // Caso todos itens forem coletados ou todos os inimigos derrotados
+    if(itemList->length < 1 || enemyList->length < 1){
         printf("Voce venceu!\n");
 
         return 0;
