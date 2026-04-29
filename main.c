@@ -15,9 +15,8 @@
 
 // Constantes
 #define INITIAL_HP 100
-#define INIMIGOS 1
-#define ITENS 1
-#define OBSTACULOS 1
+#define MAXBOARDSZ 30
+#define MINBOARDSZ 4
 
 // Variáveis globais
 char** board;
@@ -73,6 +72,14 @@ int main(){
     fflush(stdout);
     scanf("%d", &boardSize);
 
+    if(boardSize > MAXBOARDSZ) boardSize = MAXBOARDSZ;
+    if(boardSize < MINBOARDSZ) boardSize = MINBOARDSZ;
+
+    int tiles = boardSize*boardSize;
+    const int quantidade_inimigos = tiles/15; 
+    const int quantidade_itens = tiles/15; 
+    const int quantidade_obstaculos = tiles/8; 
+
     board = inicializar_tabuleiro(boardSize);
 
     int posicao[2] = {0};
@@ -80,18 +87,24 @@ int main(){
     printf("Digite a posicao x do personagem: ");
     fflush(stdout);
     scanf("%d", &(posicao[0]));
+    // Limita a posição inicial do personagem para sempre ficar dentro do tabuleiro
+    if(posicao[0] > boardSize - 1) posicao[0] = boardSize - 1;
+    if(posicao[0] < 0) posicao[0] = 0;
 
     printf("Digite a posicao y do personagem: ");
     fflush(stdout);
     scanf("%d", &(posicao[1]));
+    // Limita a posição inicial do personagem para sempre ficar dentro do tabuleiro
+    if(posicao[1] > boardSize - 1) posicao[1] = boardSize - 1;
+    if(posicao[1] < 0) posicao[1] = 0;
 
     player = criar_personagem(posicao[0], posicao[1]);
 
-    gerar_inimigos(INIMIGOS);
+    gerar_inimigos(quantidade_inimigos);
 
-    gerar_itens(ITENS);
+    gerar_itens(quantidade_itens);
 
-    gerar_obstaculos(OBSTACULOS);
+    gerar_obstaculos(quantidade_obstaculos);
 
     while(loop());
 
