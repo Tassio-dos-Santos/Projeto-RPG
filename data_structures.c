@@ -3,7 +3,9 @@
 #include <inttypes.h>
 
 // Jogo - Datatypes
-
+#define JOGO
+#define LINKEDLIST
+#define QUEUE
 #ifdef JOGO
 
 typedef struct {
@@ -31,6 +33,20 @@ typedef struct Movimento {
     char direcao; // 'W' para cima, 'S' para baixo, 'A' para esquerda, 'D' para direita
 } Movimento;
 
+typedef enum {
+    MOVE,
+    COMBAT,
+    ITEM_COLLECTED,
+    SKILL,
+    VICTORY,
+    DEFEAT
+} event_type_t;
+
+typedef struct {
+    event_type_t type;
+    void *main_entity, *secundary_entity;
+} event_t;
+
 #endif
 
 // Linked List - Declaração de Datatypes e Defines
@@ -39,15 +55,17 @@ typedef struct Movimento {
 
 struct linkedList_t;
 
-#ifdef JOGO
-#define CHARACTER_TYPE 0
-#define ENEMY_TYPE 1
-#define ITEM_TYPE 2
-#define MOVE_TYPE 3
-#define OBSTACLE_TYPE 4
-#endif
-
-#define LIST_TYPE 5
+typedef enum {
+    #ifdef JOGO
+    CHARACTER_TYPE,
+    ENEMY_TYPE,
+    ITEM_TYPE,
+    MOVE_TYPE,
+    OBSTACLE_TYPE,
+    EVENT_TYPE,
+    #endif
+    LIST_TYPE
+} list_type_t;
 
 #endif
 
@@ -58,6 +76,7 @@ typedef union nodeData_t{
     Item item;
     Movimento movimento;
     Obstaculo obstaculo;
+    event_t evento;
     #endif
 
     #ifdef LINKEDLIST
@@ -75,12 +94,14 @@ int compare_enemy(nodeData_t d1, nodeData_t d2);
 int compare_item(nodeData_t d1, nodeData_t d2);
 int compare_move(nodeData_t d1, nodeData_t d2);
 int compare_obstacle(nodeData_t d1, nodeData_t d2);
+int compare_event(nodeData_t d1, nodeData_t d2);
 int compare_list(nodeData_t d1, nodeData_t d2);
-void print_character(Personagem p);
-void print_enemy(Inimigo i);
-void print_item(Item i);
-void print_move(Movimento m);
-void print_obstacle(Obstaculo o);
+int print_character(Personagem p, FILE* file);
+int print_enemy(Inimigo i, FILE* file);
+int print_item(Item i, FILE* file);
+int print_move(Movimento m, FILE* file);
+int print_obstacle(Obstaculo o, FILE* file);
+int print_event(event_t e, FILE* file);
 
 // ---- Métodos Básicos ----
 
@@ -168,49 +189,170 @@ int compare_obstacle(nodeData_t d1, nodeData_t d2){
     }
 }
 
+// ---------------- Comparar eventos ---------------- 
+// Retorna 1 em caso dos eventos serem iguais, retorna 0 caso contrário
+int compare_event(nodeData_t d1, nodeData_t d2){
+    event_t o1 = d1.evento;
+    event_t o2 = d2.evento;
+    if(
+        memcmp(&o1, &o2, sizeof(event_t)) == 0
+    ){
+        return 1;
+    }
+    else{
+        return 0;
+    }
+}
+
 // ---------------- Imprimir personagem ---------------- 
-void print_character(Personagem p){
-    printf("Vida: %d\n", p.vida);
-    fflush(stdout);
+int print_character(Personagem p, FILE* file){
+    int result = fprintf(file ,"Vida: %d\n", p.vida);
+    if(result == -1) return 0;
 
-    printf("Pontos: %d\n", p.pontos);
-    fflush(stdout);
+    result = fprintf(file ,"Pontos: %d\n", p.pontos);
+    if(result == -1) return 0;
 
-    printf("Posicao: [%d, %d]\n", p.x, p.y);
-    fflush(stdout);
+    result = fprintf(file ,"Posicao: [%d, %d]\n", p.x, p.y);
+    if(result == -1) return 0;
+
+    fflush(file);
+
+    return 1;
 }
 
 // ---------------- Imprimir inimigo ---------------- 
-void print_enemy(Inimigo i){
-    printf("Vida: %d\n", i.vida);
-    fflush(stdout);
+int print_enemy(Inimigo i, FILE* file){
+    int result = fprintf(file ,"Vida: %d\n", i.vida);
+    if(result == -1) return 0;
 
-    printf("Posicao: [%d, %d]\n", i.x, i.y);
-    fflush(stdout);
+    result = fprintf(file ,"Posicao: [%d, %d]\n", i.x, i.y);
+    if(result == -1) return 0;
+
+    fflush(file);
+
+    return 1;
 }
 
 // ---------------- Imprimir item ---------------- 
-void print_item(Item i){
-    printf("Valor: %d\n", i.valor);
-    fflush(stdout);
+int print_item(Item i, FILE* file){
+    int result = fprintf(file ,"Valor: %d\n", i.valor);
+    if(result == -1) return 0;
 
-    printf("Posicao: [%d, %d]\n", i.x, i.y);
-    fflush(stdout);
+    result = fprintf(file ,"Posicao: [%d, %d]\n", i.x, i.y);
+    if(result == -1) return 0;
+    fflush(file);
+
+    return 1;
 }
 
 // ---------------- Imprimir movimento ---------------- 
-void print_move(Movimento m){
-    printf("Acao: %c\n", m.acao);
-    fflush(stdout);
+int print_move(Movimento m, FILE* file){
+    int result = fprintf(file ,"Acao: %c\n", m.acao);
+    if(result == -1) return 0;
 
-    printf("Direcao: %c\n", m.direcao);
-    fflush(stdout);
+    result = fprintf(file ,"Direcao: %c\n", m.direcao);
+    if(result == -1) return 0;
+    fflush(file);
+
+    return 1;
 }
 
 // ---------------- Imprimir obstaculo ---------------- 
-void print_obstacle(Obstaculo o){
-    printf("Posicao: [%d, %d]\n", o.x, o.y);
-    fflush(stdout);
+// Retorna 1 em caso de sucesso, retorna 0 caso fracasse
+int print_obstacle(Obstaculo o, FILE* file){
+    int result = fprintf(file ,"Posicao: [%d, %d]\n", o.x, o.y);
+    fflush(file);
+
+    // retorna 0 se result = -1 e retorna 1 caso contrário
+    return (result == -1)? 0:1;
+}
+
+// ---------------- Imprimir evento ---------------- 
+// Retorna 1 em caso de sucesso, retorna 0 caso fracasse
+int print_event(event_t e, FILE* file){
+    switch (e.type)
+    {
+    case MOVE:
+    {
+        if(e.main_entity == NULL){
+            fputs("ERROR - function print_event: Invalid main entity\n", stderr);
+            fflush(stderr);
+            return 0;
+        }
+        Personagem *p = (Personagem *) e.main_entity;
+        fprintf(file ,"Personagem moveu para a posicao [%d, %d]\n\n", p->x, p->y);
+        break;
+    }
+    case COMBAT:
+    {
+        if(e.main_entity == NULL){
+            fputs("ERROR - function print_event: Invalid main entity\n", stderr);
+            fflush(stderr);
+            return 0;
+        }
+        if(e.secundary_entity == NULL){
+            fputs("ERROR - function print_event: Invalid secundary entity\n", stderr);
+            fflush(stderr);
+            return 0;
+        }
+        Personagem *p = (Personagem *) e.main_entity;
+        Inimigo *i = (Inimigo *) e.secundary_entity;
+        fprintf(file ,"Personagem combateu o inimigo na posicao [%d, %d]\nVida atual do personagem: %d      Vida atual do inimigo: %d\n\n", i->x, i->y, p->vida, i->vida);
+        break;
+    }
+    case ITEM_COLLECTED:
+    {
+        if(e.main_entity == NULL){
+            fputs("ERROR - function print_event: Invalid main entity\n", stderr);
+            fflush(stderr);
+            return 0;
+        }
+        if(e.secundary_entity == NULL){
+            fputs("ERROR - function print_event: Invalid secundary entity\n", stderr);
+            fflush(stderr);
+            return 0;
+        }
+        Personagem *p = (Personagem *) e.main_entity;
+        Item *i = (Item *) e.secundary_entity;
+        fprintf(file ,"Personagem coletou o item na posicao [%d, %d]\nPontuacao atual do personagem: %d      Valor do item: %d\n\n", i->x, i->y, p->pontos, i->valor);
+        break;
+    }
+    case SKILL:
+    {
+        /*Personagem *p = (Personagem *) e.main_entity;
+
+        fprintf(file ,"\n\n");*/
+        break;
+    }
+    case VICTORY:
+    {
+        if(e.main_entity == NULL){
+            fputs("ERROR - function print_event: Invalid main entity\n", stderr);
+            fflush(stderr);
+            return 0;
+        }
+        Personagem *p = (Personagem *) e.main_entity;
+        fprintf(file ,"Player venceu\nVida do personagem: %d      Pontuacao do personagem: %d\n\n", p->vida, p->pontos);
+        break;
+    }
+    case DEFEAT:
+    {
+        if(e.main_entity == NULL){
+            fputs("ERROR - function print_event: Invalid main entity\n", stderr);
+            fflush(stderr);
+            return 0;
+        }
+        Personagem *p = (Personagem *) e.main_entity;
+        fprintf(file ,"Player perdeu\nVida do personagem: %d      Pontuacao do personagem: %d\n\n", p->vida, p->pontos);
+        break;
+    }
+    default:
+        break;
+    }
+
+    fflush(file);
+
+    return 1;
 }
 
 #endif
@@ -227,7 +369,7 @@ typedef struct linkedNode_t {
 } linkedNode_t;
 
 typedef struct linkedList_t {
-    int listType; // CHARACTER_TYPE - ENEMY_TYPE - ITEM_TYPE - MOVE_TYPE - LIST_TYPE
+    list_type_t listType; // CHARACTER_TYPE - ENEMY_TYPE - ITEM_TYPE - MOVE_TYPE - LIST_TYPE
     linkedNode_t * head, * tail;
     int length;
 } linkedList_t;
@@ -247,7 +389,7 @@ linkedNode_t* search_linked_list(linkedList_t* list, int index);
 int delete_linked_list(linkedList_t* list);
 int search_data_linked_list(linkedList_t* list, nodeData_t data);
 int search_position_linked_list(linkedList_t* list, int x, int y);
-void print_list(linkedList_t* list);
+void print_list(linkedList_t* list, FILE* file);
 
 // ---- Métodos Básicos ----
 
@@ -615,7 +757,7 @@ int search_position_linked_list(linkedList_t* list, int x, int y){
 
 // ------------ Impressão da Lista ------------
 // Printa cada item da lista
-void print_list(linkedList_t* list){
+void print_list(linkedList_t* list, FILE* file){
     linkedNode_t* currentNode = list->head;
     int mode = list->listType;
     for(int i = 0; i < list->length; i++){
@@ -627,35 +769,35 @@ void print_list(linkedList_t* list){
             printf("\nPersonagem  %d\n", i + 1);
             fflush(stdout);
 
-            print_character(currentNode->data.personagem);
+            print_character(currentNode->data.personagem, file);
             break;
         
         case ENEMY_TYPE:
             printf("\nInimigo  %d\n", i + 1);
             fflush(stdout);
 
-            print_enemy(currentNode->data.inimigo);
+            print_enemy(currentNode->data.inimigo, file);
             break;
         
         case ITEM_TYPE:
             printf("\nItem  %d\n", i + 1);
             fflush(stdout);
 
-            print_item(currentNode->data.item);
+            print_item(currentNode->data.item, file);
             break;
         
         case MOVE_TYPE:
             printf("\nMovimento  %d\n", i + 1);
             fflush(stdout);
 
-            print_move(currentNode->data.movimento);
+            print_move(currentNode->data.movimento, file);
             break;
             
         case OBSTACLE_TYPE:
             printf("\nObstaculo  %d\n", i + 1);
             fflush(stdout);
 
-            print_obstacle(currentNode->data.obstaculo);
+            print_obstacle(currentNode->data.obstaculo, file);
             break;
 
         #endif
@@ -746,7 +888,7 @@ queue_t* create_queue(int listType);
 nodeData_t front(queue_t* queue);
 int enqueue(queue_t* queue, nodeData_t data);
 nodeData_t dequeue(queue_t* queue);
-void print_queue(queue_t* queue);
+void print_queue(queue_t* queue, FILE* file);
 int delete_queue(queue_t* queue);
 
 // ---- Métodos Básicos ----
@@ -803,8 +945,8 @@ nodeData_t dequeue(queue_t* queue){
 
 // ------------ Impressão da Fila ------------
 // Printa cada item da Fila
-void print_queue(queue_t* queue){
-    print_list((linkedList_t*) queue);
+void print_queue(queue_t* queue, FILE* file){
+    print_list((linkedList_t*) queue, file);
 }
 
 // --------------- Deletar fila --------------- 

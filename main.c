@@ -5,6 +5,8 @@
 #include <time.h>
 #include <ctype.h>
 #include <pthread.h>
+#include <semaphore.h>
+#include <signal.h>
 
 #define JOGO
 #define LINKEDLIST
@@ -24,9 +26,19 @@ int boardSize;
 //int atualizarTabuleiro = 1;
 Personagem* player;
 linkedList_t *enemyList, *itemList, *obstacleList;
-queue_t* moveQueue;
+queue_t *moveQueue, *logQueue;
 
-FILE* log_file;
+// Threads
+pthread_t logger_thr;
+
+// Sinais para terminar as threads
+volatile sig_atomic_t end_logger = 0;
+
+// Mutexes
+pthread_mutex_t log_queue_mutex;
+
+// Semáforos
+sem_t log_queue_sem;
 
 int loop();
 char** inicializar_tabuleiro(int N);
@@ -47,10 +59,13 @@ int mover_inimigo(int indexInimigo);
 char movimento_aleatorio();
 int adicionar_comando_fila(queue_t *fila, char acao, char direcao);
 int processar_comando_fila(queue_t *fila);
-int log_action(FILE *logFile, Movimento m);
-int log_item_collected(FILE *logFile, Item i);
-int log_combat(FILE *logFile, Inimigo i);
-int liberar_memoria(char **tabuleiro, Personagem *p, linkedList_t *listaInimigo, linkedList_t *listaItem, linkedList_t *listaObstaculo, queue_t *filaMovimento, FILE *logFile);
+
+void *logger();
+int log_move(Movimento m);
+int log_item_collected(Item i);
+int log_combat(Inimigo i);
+
+int liberar_memoria(char **tabuleiro, Personagem *p, linkedList_t *listaInimigo, linkedList_t *listaItem, linkedList_t *listaObstaculo, queue_t *filaMovimento);
 
 int main(){
     // Inicializa as estruturas de dados
@@ -58,9 +73,16 @@ int main(){
     itemList = create_linked_list(ITEM_TYPE);
     obstacleList = create_linked_list(OBSTACLE_TYPE);
     moveQueue = create_queue(MOVE_TYPE);
+    logQueue = create_queue(EVENT_TYPE);
 
-    // Inicializa o arquivo de log
-    log_file = fopen("log.txt", "w");
+    // Inicializa o logger
+    pthread_create(&logger_thr, NULL, &logger, NULL);
+
+    // Inicializa todos os mutexes
+    pthread_mutex_init(&log_queue_mutex, NULL);
+
+    // Inicializa todos os semáforos
+    sem_init(&log_queue_sem, 0, 0);
 
     // Inicializa os números aleatórios
     srand(time(NULL));
@@ -129,7 +151,11 @@ int main(){
 
     #endif
 
-    return liberar_memoria(board, player, enemyList, itemList, obstacleList, moveQueue, log_file);
+    end_logger = 1;
+    sem_post(&log_queue_sem);
+    pthread_mutex_unlock(&log_queue_mutex);
+    pthread_join(logger_thr, NULL);
+    return liberar_memoria(board, player, enemyList, itemList, obstacleList, moveQueue);
 }
 
 int loop(){
@@ -417,7 +443,7 @@ int gerar_inimigos(int quantidade){
     }
 
     #ifdef DEBUG
-    print_list(enemyList);
+    print_list(enemyList, stdout);
     #endif
 }
 
@@ -443,7 +469,7 @@ int gerar_itens(int quantidade){
     }
 
     #ifdef DEBUG
-    print_list(itemList);
+    print_list(itemList, stdout);
     #endif
 }
 
@@ -468,7 +494,7 @@ int gerar_obstaculos(int quantidade){
     }
 
     #ifdef DEBUG
-    print_list(obstacleList);
+    print_list(obstacleList, stdout);
     #endif
 }
 
@@ -625,7 +651,7 @@ int mover_personagem(Personagem *p, char direcao){
         #ifdef DEBUG
         index = search_position_linked_list(obstacleList, nextPositionX, nextPositionY);
         Obstaculo obstaculo = search_linked_list(obstacleList, index)->data.obstaculo;
-        print_obstacle(obstaculo);
+        print_obstacle(obstaculo, stdout);
         #endif
     case 'P':
     default:
@@ -665,7 +691,7 @@ int combate(Personagem *p, int indexInimigo){
 
     Inimigo inimigo = noInimigo->data.inimigo;
 
-    log_combat(log_file, inimigo);
+    log_combat(inimigo);
 
     // Caso o inimigo morra, já o deleta da lista
     if(inimigo.vida <= 0){
@@ -692,7 +718,7 @@ int combate(Personagem *p, int indexInimigo){
     }
 
     #ifdef DEBUG
-    print_list(enemyList);
+    print_list(enemyList, stdout);
     #endif
 
     return 1;
@@ -716,10 +742,10 @@ int coletar_item(Personagem *p, int indexItem){
     }
 
     p->pontos += item.valor;
-    log_item_collected(log_file, item);
+    log_item_collected(item);
 
     #ifdef DEBUG
-    print_list(itemList);
+    print_list(itemList, stdout);
     #endif
 
     return 1;
@@ -916,7 +942,7 @@ int processar_comando_fila(queue_t *fila){
             int result = mover_personagem(player, m.direcao);
 
             if(result == 0){
-                log_action(log_file, m);
+                log_move(m);
             }
 
             return result;
@@ -936,84 +962,182 @@ int processar_comando_fila(queue_t *fila){
     return 0;
 }
 
+void *logger(){
+    // Inicia o arquivo de log
+    FILE *log_file = fopen("log.txt", "w");
+
+    while(!end_logger){
+        // Tira valor do semáforo
+        sem_wait(&log_queue_sem);
+        if(end_logger) break;
+
+        // Pega o mutex da log queue
+        pthread_mutex_lock(&log_queue_mutex);
+        if(end_logger) break;
+
+        // Se a log queue estiver vazia
+        if(logQueue->length < 1){
+            // Devolve o mutex
+            pthread_mutex_unlock(&log_queue_mutex);
+
+            // E volta ao início do loop
+            continue;
+        }
+
+        // Pega o dado da frente da fila
+        nodeData_t dataEvento = dequeue(logQueue);
+
+        // Verifica se o dado está vazio
+        if(isDataEmpty(dataEvento) == 1){
+            // Devolve o mutex
+            pthread_mutex_unlock(&log_queue_mutex);
+
+            // E volta ao início do loop
+            continue;
+        }
+
+        // Se o dado não está vazio, extrai o evento
+        event_t evento = dataEvento.evento;
+
+        // Pega o horário atual e transforma em string
+        time_t now = time(NULL);
+        struct tm *local = localtime(&now);
+        char timeString[80];
+        strftime(timeString, sizeof(timeString), "%Y-%m-%d %H:%M:%S", local);
+
+        // Escreve o horário no log
+        if(fprintf(log_file, "%s ", timeString) == -1){
+            fputs("ERROR - function log_move: Couldn't write log\n", stderr);
+            fflush(stderr);
+            return NULL;
+        }
+
+        // E printa o evento
+        if(print_event(evento, log_file) == -1){
+            fputs("ERROR - thread logger: Couldn't write log\n", stderr);
+            fflush(stderr);
+            return NULL;
+        }
+
+        // Libera a memória dos ponteiros das entidades
+        free(evento.main_entity);
+        free(evento.secundary_entity);
+
+        // Devolve o mutex da log queue
+        pthread_mutex_unlock(&log_queue_mutex);
+    }
+
+    fclose(log_file);
+}
+
 // Loga um movimento num arquivo de log especificado
 // Em caso de sucesso retorna 1, em caso de falha retorna 0 
-int log_action(FILE *logFile, Movimento m){
-    if(logFile == NULL){
-        fputs("ERROR - function log_action: Invalid file stream\n", stderr);
+int log_move(Movimento m){
+    // Aloca um espaço na memória para guardar os dados da entidade principal (player) na fila de log
+    Personagem *p = (Personagem *) malloc(sizeof(Personagem));
+    memcpy(p, player, sizeof(Personagem));
+
+    // Cria o evento
+    event_t movimento = {
+        .type = MOVE,
+        .main_entity = p,
+        .secundary_entity = NULL
+    };
+
+    // Pega o mutex para usar a log queue
+    pthread_mutex_lock(&log_queue_mutex);
+
+    // Bota o evento na fila
+    if(enqueue(logQueue, (nodeData_t) movimento) == 0){
+        fputs("ERROR - function log_move: Couldn't enqueue log\n", stderr);
         fflush(stderr);
         return 0;
     }
 
-    time_t now = time(NULL);
-    struct tm *local = localtime(&now);
-    char timeString[80];
-    strftime(timeString, sizeof(timeString), "%Y-%m-%d %H:%M:%S", local);
+    // Devolve o mutex de usar a log queue
+    pthread_mutex_unlock(&log_queue_mutex); 
 
-    int result = fprintf(logFile, "\n%s\tAcao: %c\tDirecao: %c\n", timeString, m.acao, m.direcao);
-
-    if(result == -1){
-        fputs("ERROR - function log_action: Couldn't write log\n", stderr);
-        fflush(stderr);
-        return 0;
-    }
+    // Posta no semáforo da log queue para sinalizar que há mais um evento na fila
+    sem_post(&log_queue_sem);
 
     return 1;
 }
 
 // Loga um item coletado num arquivo de log especificado
 // Em caso de sucesso retorna 1, em caso de falha retorna 0 
-int log_item_collected(FILE *logFile, Item i){
-    if(logFile == NULL){
-        fputs("ERROR - function log_item_collected: Invalid file stream\n", stderr);
+int log_item_collected(Item item){
+    // Aloca um espaço na memória para guardar os dados da entidade principal (player) na fila de log
+    Personagem *p = (Personagem *) malloc(sizeof(Personagem));
+    memcpy(p, player, sizeof(Personagem));
+
+    // Aloca um espaço na memória para guardar os dados da entidade secundária (item) na fila de log
+    Item *i = (Item *) malloc(sizeof(Item));
+    memcpy(i, &item, sizeof(Item));
+
+    event_t item_coletado = {
+        .type = ITEM_COLLECTED,
+        .main_entity = p,
+        .secundary_entity = i
+    };
+
+    // Pega o mutex para usar a log queue
+    pthread_mutex_lock(&log_queue_mutex);
+
+    // Bota o evento na fila
+    if(enqueue(logQueue, (nodeData_t) item_coletado) == 0){
+        fputs("ERROR - function log_item_collected: Couldn't enqueue log\n", stderr);
         fflush(stderr);
         return 0;
     }
 
-    time_t now = time(NULL);
-    struct tm *local = localtime(&now);
-    char timeString[80];
-    strftime(timeString, sizeof(timeString), "%Y-%m-%d %H:%M:%S", local);
+    // Devolve o mutex de usar a log queue
+    pthread_mutex_unlock(&log_queue_mutex); 
 
-    int result = fprintf(logFile, "\n%s\tItem coletado\tValor: %d\tPosicao: [%d, %d]\n", timeString, i.valor, i.x, i.y);
-
-    if(result == -1){
-        fputs("ERROR - function log_item_collected: Couldn't write log\n", stderr);
-        fflush(stderr);
-        return 0;
-    }
+    // Posta no semáforo da log queue para sinalizar que há mais um evento na fila
+    sem_post(&log_queue_sem);
 
     return 1;
 }
 
 // Loga um combate num arquivo de log especificado
 // Em caso de sucesso retorna 1, em caso de falha retorna 0 
-int log_combat(FILE *logFile, Inimigo i){
-    if(logFile == NULL){
-        fputs("ERROR - function log_combat: Invalid file stream\n", stderr);
+int log_combat(Inimigo inimigo){
+    // Aloca um espaço na memória para guardar os dados da entidade principal (player) na fila de log
+    Personagem *p = (Personagem *) malloc(sizeof(Personagem));
+    memcpy(p, player, sizeof(Personagem));
+
+    // Aloca um espaço na memória para guardar os dados da entidade secundária (inimigo) na fila de log
+    Inimigo *i = (Inimigo *) malloc(sizeof(Inimigo));
+    memcpy(i, &inimigo, sizeof(Inimigo));
+
+    event_t combate = {
+        .type = COMBAT,
+        .main_entity = p,
+        .secundary_entity = i
+    };
+
+    // Pega o mutex para usar a log queue
+    pthread_mutex_lock(&log_queue_mutex);
+
+    // Bota o evento na fila
+    if(enqueue(logQueue, (nodeData_t) combate) == 0){
+        fputs("ERROR - function log_combat: Couldn't enqueue log\n", stderr);
         fflush(stderr);
         return 0;
     }
 
-    time_t now = time(NULL);
-    struct tm *local = localtime(&now);
-    char timeString[80];
-    strftime(timeString, sizeof(timeString), "%Y-%m-%d %H:%M:%S", local);
+    // Devolve o mutex de usar a log queue
+    pthread_mutex_unlock(&log_queue_mutex); 
 
-    int result = fprintf(logFile, "\n%s\tInimigo combatido\tVida: %d\tPosicao: [%d, %d]\n", timeString, i.vida, i.x, i.y);
-
-    if(result == -1){
-        fputs("ERROR - function log_combat: Couldn't write log\n", stderr);
-        fflush(stderr);
-        return 0;
-    }
+    // Posta no semáforo da log queue para sinalizar que há mais um evento na fila
+    sem_post(&log_queue_sem);
 
     return 1;
 }
 
 // Libera toda memória dinamicamente alocada pelo programa
 // Em caso de sucesso retorna 0, em caso de fracasso retorna 1
-int liberar_memoria(char **tabuleiro, Personagem *p, linkedList_t *listaInimigo, linkedList_t *listaItem, linkedList_t *listaObstaculo, queue_t *filaMovimento, FILE *logFile){
+int liberar_memoria(char **tabuleiro, Personagem *p, linkedList_t *listaInimigo, linkedList_t *listaItem, linkedList_t *listaObstaculo, queue_t *filaMovimento){
     free(p);
 
     if(delete_linked_list(enemyList) == 0){
@@ -1045,12 +1169,6 @@ int liberar_memoria(char **tabuleiro, Personagem *p, linkedList_t *listaInimigo,
     }
 
     free(tabuleiro);
-
-    if(fclose(logFile) == EOF){
-        fputs("ERROR - function liberar_memoria: Couldn't close log file\n", stderr);
-        fflush(stderr);
-        return 1;
-    }
 
     return 0;
 }
