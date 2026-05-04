@@ -15,6 +15,14 @@
 
 // #define DEBUG
 
+#ifdef DEBUG
+
+#define INIMIGOS 5
+#define ITENS 5
+#define OBSTACULOS 10
+
+#endif
+
 // Constantes
 #define INITIAL_HP 100
 #define MAXBOARDSZ 30
@@ -30,19 +38,30 @@ queue_t *moveQueue, *logQueue;
 
 // Threads
 pthread_t logger_thr;
+pthread_t renderer_thr;
 
 // Sinais para terminar as threads
 volatile sig_atomic_t end_logger = 0;
+volatile sig_atomic_t end_renderer = 0;
+
+// Sinais para sincronizar as threads
+volatile sig_atomic_t display_updated = 0;
 
 // Mutexes
 pthread_mutex_t log_queue_mutex;
+pthread_mutex_t board_mutex;
 
 // Semáforos
 sem_t log_queue_sem;
+sem_t render_sem;
 
 int loop();
 char** inicializar_tabuleiro(int N);
+
+void *renderer();
+void render_board();
 void mostrar_tabuleiro();
+
 int atualizar_posicoes();
 int atualizar_posicoes_de_lista(linkedList_t *lista);
 int gerar_inimigos(int quantidade);
@@ -77,12 +96,15 @@ int main(){
 
     // Inicializa o logger
     pthread_create(&logger_thr, NULL, &logger, NULL);
+    pthread_create(&renderer_thr, NULL, &renderer, NULL);
 
     // Inicializa todos os mutexes
     pthread_mutex_init(&log_queue_mutex, NULL);
+    pthread_mutex_init(&board_mutex, NULL);
 
     // Inicializa todos os semáforos
     sem_init(&log_queue_sem, 0, 0);
+    sem_init(&render_sem, 0, 0);
 
     // Inicializa os números aleatórios
     srand(time(NULL));
@@ -151,10 +173,18 @@ int main(){
 
     #endif
 
+    // Finaliza a thread logger
     end_logger = 1;
     sem_post(&log_queue_sem);
     pthread_mutex_unlock(&log_queue_mutex);
     pthread_join(logger_thr, NULL);
+
+    // Finaliza a thread renderer
+    end_renderer = 1;
+    sem_post(&render_sem);
+    pthread_mutex_unlock(&board_mutex);
+    pthread_join(renderer_thr, NULL);
+
     return liberar_memoria(board, player, enemyList, itemList, obstacleList, moveQueue);
 }
 
@@ -166,8 +196,10 @@ int loop(){
         fflush(stderr);
         return 0;
     }
+
     mostrar_tabuleiro(board);
 
+    while(display_updated == 0);
 
     // Caso todos itens forem coletados ou todos os inimigos derrotados
     if(itemList->length < 1 || enemyList->length < 1){
@@ -185,7 +217,6 @@ int loop(){
     printf("Acao ('WASD' para movimento, 'E' para ataque, 'Q' para sair do programa): \n");
     fflush(stdout);
 
-    
     while(!_kbhit());
     input = _getch();
     input = toupper(input);
@@ -312,24 +343,67 @@ char** inicializar_tabuleiro(int N){
     return tabuleiro;
 }
 
-// Limpa a tela e mostrar as informações do personagem e o tabuleiro
-void mostrar_tabuleiro(){
+void *renderer(){
+    while(!end_renderer){
+        sem_wait(&render_sem);
+        if(end_renderer) break;
+
+        pthread_mutex_lock(&board_mutex);
+        if(end_renderer) break;
+
+        render_board();
+        display_updated = 1;
+
+        pthread_mutex_unlock(&board_mutex);
+    }
+}
+
+void render_board(){
     #ifndef DEBUG
     system("cls");
     #endif
     printf("Vida do personagem: %d \tPontuacao do personagem: %d\n\n", player->vida, player->pontos);
     for(int i = boardSize - 1; i > - 1; i--){
         for(int j = 0; j < boardSize; j++){
-            printf(" %c", board[i][j]);
+            switch (board[i][j])
+            {
+            case 'P':
+                printf("\x1b[32m");
+                break;
+            
+            case 'E':
+                printf("\x1b[31m");
+                break;
+            
+            case 'I':
+                printf("\x1b[34m");
+                break;
+            
+            case 'X':
+                printf("\x1b[30m");
+                break;
+            
+            default:
+                break;
+            }
+            printf(" %c\x1b[0m", board[i][j]);
         }
         printf("\n\0");
     }
     printf("\n\n");
 }
 
+// Limpa a tela e mostrar as informações do personagem e o tabuleiro
+void mostrar_tabuleiro(){
+    display_updated = 0;
+    sem_post(&render_sem);
+}
+
 // Atualiza o tabuleiro (matriz de caracteres) de acordo com as posições das entidades nas listas
 // Em caso de sucesso retorna 1, em caso de falha retorna 0
 int atualizar_posicoes(){
+    pthread_mutex_lock(&board_mutex);
+
     // Reseta o tabuleiro
     for(int i = 0; i < boardSize; i++){
         for(int j = 0; j < boardSize; j++){
@@ -344,6 +418,7 @@ int atualizar_posicoes(){
     if(atualizar_posicoes_de_lista(enemyList) == 0){
         fputs("ERROR - function atualizar_posicoes: Couldn't update enemies' position\n", stderr);
         fflush(stderr);
+        pthread_mutex_unlock(&board_mutex);
         return 0;
     }
 
@@ -351,6 +426,7 @@ int atualizar_posicoes(){
     if(atualizar_posicoes_de_lista(itemList) == 0){
         fputs("ERROR - function atualizar_posicoes: Couldn't update items' position\n", stderr);
         fflush(stderr);
+        pthread_mutex_unlock(&board_mutex);
         return 0;
     }
 
@@ -358,8 +434,11 @@ int atualizar_posicoes(){
     if(atualizar_posicoes_de_lista(obstacleList) == 0){
         fputs("ERROR - function atualizar_posicoes: Couldn't update obstacles' position\n", stderr);
         fflush(stderr);
+        pthread_mutex_unlock(&board_mutex);
         return 0;
     }
+
+    pthread_mutex_unlock(&board_mutex);
 
     return 1;
 }
@@ -429,11 +508,14 @@ int gerar_inimigos(int quantidade){
     Inimigo newEnemy;
     for(int i = 0; i < quantidade; i++){
         int posX, posY;
+
+        pthread_mutex_lock(&board_mutex);
         do{
             posX = rand() % (boardSize);
             posY = rand() % (boardSize);
 
         }while(board[posY][posX] != '-');
+        pthread_mutex_unlock(&board_mutex);
 
         if(adicionar_inimigo(enemyList, posX, posY) == 0){
             fputs("ERROR - function gerar_inimigos: Couldn't add enemy to the list\n", stderr);
@@ -455,11 +537,13 @@ int gerar_itens(int quantidade){
 
         int valor = (rand() + 5) % 101;
 
+        pthread_mutex_lock(&board_mutex);
         // Gera novas posições, até achar uma desocupada
         do{
             posX = rand() % (boardSize);
             posY = rand() % (boardSize);
         }while(board[posY][posX] != '-');
+        pthread_mutex_unlock(&board_mutex);
 
         if(adicionar_item(itemList, posX, posY, valor) == 0){
             fputs("ERROR - function gerar_itens: Couldn't add item to the list\n", stderr);
@@ -477,6 +561,8 @@ int gerar_itens(int quantidade){
 // Em caso de sucesso retorna 1, em caso de falha retorna 0
 int gerar_obstaculos(int quantidade){
     Obstaculo newObstacle;
+
+    pthread_mutex_lock(&board_mutex);
     for(int i = 0; i < quantidade; i++){
         // Gera novas posições, até achar uma desocupada
         do{
@@ -492,6 +578,7 @@ int gerar_obstaculos(int quantidade){
             return 0;
         }
     }
+    pthread_mutex_unlock(&board_mutex);
 
     #ifdef DEBUG
     print_list(obstacleList, stdout);
@@ -513,8 +600,10 @@ Personagem *criar_personagem(int x, int y){
     personagem_novo->pontos = 0;
     personagem_novo->vida = INITIAL_HP;
 
+    pthread_mutex_lock(&board_mutex);
     // Põe o player no tabuleiro
     board[personagem_novo->y][personagem_novo->x] = 'P';
+    pthread_mutex_unlock(&board_mutex);
 
     return personagem_novo;
 }
@@ -528,7 +617,10 @@ int adicionar_inimigo(linkedList_t *listaInimigo, int x, int y){
         .y = y
     };
 
+    pthread_mutex_lock(&board_mutex);
     board[newEnemy.y][newEnemy.x] = 'E';
+    pthread_mutex_unlock(&board_mutex);
+
     if(insert_linked_list(listaInimigo, (nodeData_t) newEnemy, -1) == 0){
         fputs("ERROR - function adicionar_inimigo: Couldn't add enemy to the list\n", stderr);
         fflush(stderr);
@@ -545,7 +637,9 @@ int adicionar_item(linkedList_t *listaItem, int x, int y, int valor){
         .y = y
     };
 
+    pthread_mutex_lock(&board_mutex);
     board[newItem.y][newItem.x] = 'I';
+    pthread_mutex_unlock(&board_mutex);
 
     if(insert_linked_list(listaItem, (nodeData_t) newItem, -1) == 0){
         fputs("ERROR - function adicionar_item: Couldn't add item to the list\n", stderr);
@@ -648,11 +742,13 @@ int mover_personagem(Personagem *p, char direcao){
         break;
     }
     case 'X':
+    {
         #ifdef DEBUG
-        index = search_position_linked_list(obstacleList, nextPositionX, nextPositionY);
+        int index = search_position_linked_list(obstacleList, nextPositionX, nextPositionY);
         Obstaculo obstaculo = search_linked_list(obstacleList, index)->data.obstaculo;
         print_obstacle(obstaculo, stdout);
         #endif
+    }
     case 'P':
     default:
         return 1;
