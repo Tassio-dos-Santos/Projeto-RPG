@@ -4,6 +4,7 @@
 
 // Jogo - Datatypes
 #define JOGO
+#define ASTAR
 #define LINKEDLIST
 #define QUEUE
 #ifdef JOGO
@@ -47,6 +48,22 @@ typedef struct {
     void *main_entity, *secundary_entity;
 } event_t;
 
+// Algoritmo A-Star - Datatypes
+
+#ifdef ASTAR
+
+typedef struct a_star_node_t{
+    int x, y;
+
+    int walkable;
+
+    int gCost, hCost;
+
+    a_star_node_t *parent;
+} a_star_node_t;
+
+#endif
+
 #endif
 
 // Linked List - Declaração de Datatypes e Defines
@@ -63,6 +80,11 @@ typedef enum {
     MOVE_TYPE,
     OBSTACLE_TYPE,
     EVENT_TYPE,
+
+    #ifdef ASTAR
+    ASTAR_TYPE,
+    #endif
+
     #endif
     LIST_TYPE
 } list_type_t;
@@ -77,6 +99,11 @@ typedef union nodeData_t{
     Movimento movimento;
     Obstaculo obstaculo;
     event_t evento;
+
+    #ifdef ASTAR
+    a_star_node_t* no_a_star;
+    #endif
+
     #endif
 
     #ifdef LINKEDLIST
@@ -102,6 +129,16 @@ int print_item(Item i, FILE* file);
 int print_move(Movimento m, FILE* file);
 int print_obstacle(Obstaculo o, FILE* file);
 int print_event(event_t e, FILE* file);
+
+// Algoritmo A-Star - Declaração de métodos 
+
+#ifdef ASTAR
+
+int create_astar_node(int x, int y, int walkable, int gCost, int hCost);
+int compare_astar_nodes(nodeData_t d1, nodeData_t d2);
+int print_astar_node(a_star_node_t an, FILE* file);
+
+#endif
 
 // ---- Métodos Básicos ----
 
@@ -354,6 +391,69 @@ int print_event(event_t e, FILE* file){
 
     return 1;
 }
+
+// Algoritmo A-Star - Definição de métodos 
+
+#ifdef ASTAR
+
+// ---------------- Criar Nó A-Star ---------------- 
+// Retorna o endereço do nó em caso de sucesso, retorna NULL caso contrário
+int create_astar_node(int x, int y, int walkable, int gCost, int hCost){
+    a_star_node_t* new_astar_node = (a_star_node_t *) malloc(sizeof(a_star_node_t));
+    if(new_astar_node == NULL){
+        
+    }
+
+    a_star_node_t astar_buffer = {
+        .x = x,
+        .y = y,
+        .walkable = walkable,
+        .gCost = gCost,
+        .hCost = hCost,
+        .parent = NULL
+    };
+
+    *new_astar_node = astar_buffer;
+
+    return new_astar_node;
+}
+
+// ---------------- Comparar Nós A-Star ---------------- 
+// Retorna 1 em caso dos nós serem iguais, retorna 0 caso contrário
+int compare_astar_nodes(nodeData_t d1, nodeData_t d2){
+    a_star_node_t n1 = *d1.no_a_star;
+    a_star_node_t n2 = *d2.no_a_star;
+    if(
+        memcmp(&n1, &n2, sizeof(a_star_node_t)) == 0
+    ){
+        return 1;
+    }
+    else{
+        return 0;
+    }
+}
+
+// ---------------- Imprimir Nó A-Star ---------------- 
+// Retorna 1 em caso de sucesso, retorna 0 caso fracasse
+int print_astar_node(a_star_node_t an, FILE* file){
+    if(fprintf(file ,"Posicao: [%d, %d]\nCusto G: %d    Custo H: %d\n", an.x, an.y, an.gCost, an.hCost) == -1){
+        return 0;
+    }
+    if(an.walkable == 1){
+        if(fprintf(file ,"Casa andavel do tabuleiro") == -1){
+            return 0;
+        }
+    }else{
+        if(fprintf(file ,"Casa nao andavel do tabuleiro") == -1){
+            return 0;
+        }
+    }
+    fflush(file);
+
+    return 1;
+}
+
+#endif
 
 #endif
 
