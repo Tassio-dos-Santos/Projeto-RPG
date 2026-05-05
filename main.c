@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <conio.h>
 #include <stdlib.h>
+#include <math.h>
 #include <windows.h>
 #include <time.h>
 #include <ctype.h>
@@ -17,9 +18,9 @@
 
 #ifdef DEBUG
 
-#define INIMIGOS 5
-#define ITENS 5
-#define OBSTACULOS 10
+#define INIMIGOS 1
+#define ITENS 1
+#define OBSTACULOS 0
 
 #endif
 
@@ -27,6 +28,7 @@
 #define INITIAL_HP 100
 #define MAXBOARDSZ 30
 #define MINBOARDSZ 4
+#define RAIOINIMIGO 2
 
 // Variáveis globais
 char** board;
@@ -70,12 +72,18 @@ int gerar_obstaculos(int quantidade);
 Personagem *criar_personagem(int x, int y);
 int adicionar_inimigo(linkedList_t *listaInimigo, int x, int y);
 int adicionar_item(linkedList_t *listaItem, int x, int y, int valor);
+int adicionar_obstaculo(linkedList_t *listaObstaculo, int x, int y);
 int mover_personagem(Personagem *p, char direcao);
 int combate(Personagem *p, int indexInimigo);
 int coletar_item(Personagem *p, int indexInimigo);
 int mover_inimigos();
 int mover_inimigo(int indexInimigo);
 char movimento_aleatorio();
+char movimento_perseguir(Inimigo i);
+char movimento_simples_vertical(Inimigo i, int dx, int dy);
+char movimento_simples_horizontal(Inimigo i, int dx, int dy);
+int is_tile_player_walkable(int x, int y);
+int is_tile_enemy_walkable(int x, int y);
 int adicionar_comando_fila(queue_t *fila, char acao, char direcao);
 int processar_comando_fila(queue_t *fila);
 
@@ -120,7 +128,7 @@ int main(){
     if(boardSize < MINBOARDSZ) boardSize = MINBOARDSZ;
 
     int tiles = boardSize*boardSize;
-    const int quantidade_inimigos = tiles/15; 
+    const int quantidade_inimigos = tiles/18; 
     const int quantidade_itens = tiles/15; 
     const int quantidade_obstaculos = tiles/8; 
 
@@ -165,9 +173,19 @@ int main(){
 
     player = criar_personagem(PLAYERPOSX, PLAYERPOSY);
 
-    gerar_inimigos(INIMIGOS);
+    // gerar_inimigos(INIMIGOS);
+
+    adicionar_inimigo(enemyList, 9, 9);
+    // gerar_obstaculos(OBSTACULOS);
+    adicionar_obstaculo(obstacleList, 5, 9);
+    adicionar_obstaculo(obstacleList, 5, 8);
+    adicionar_obstaculo(obstacleList, 5, 7);
+    adicionar_obstaculo(obstacleList, 5, 6);
+    adicionar_obstaculo(obstacleList, 5, 5);
+    adicionar_obstaculo(obstacleList, 5, 4);
+    adicionar_obstaculo(obstacleList, 5, 3);
+
     gerar_itens(ITENS);
-    gerar_obstaculos(OBSTACULOS);
 
     while(loop());
 
@@ -214,12 +232,22 @@ int loop(){
         return 0;
     }
     
+    #ifndef DEBUG
     printf("Acao ('WASD' para movimento, 'E' para ataque, 'Q' para sair do programa): \n");
     fflush(stdout);
 
     while(!_kbhit());
     input = _getch();
     input = toupper(input);
+    #endif
+
+    #ifdef DEBUG
+
+    fflush(stdout);
+    Sleep(500);
+    input = 'S';
+
+    #endif
 
     switch (input)
     {
@@ -279,13 +307,23 @@ int loop(){
     }
 
     // Essa parte do loop só será executada caso seja selecionado ataque
-    
+    #ifndef DEBUG
+
     printf("Direcao ('W' para cima, 'S' para baixo, 'A' para esquerda, 'D' para direita): \n");
     fflush(stdout);
 
     while(!_kbhit());
     input = _getch();
     input = toupper(input);
+
+    #endif
+
+    #ifdef DEBUG
+
+    Sleep(500);
+    input = 'S';
+
+    #endif
 
     switch (input)
     {
@@ -509,13 +547,11 @@ int gerar_inimigos(int quantidade){
     for(int i = 0; i < quantidade; i++){
         int posX, posY;
 
-        pthread_mutex_lock(&board_mutex);
         do{
             posX = rand() % (boardSize);
             posY = rand() % (boardSize);
 
         }while(board[posY][posX] != '-');
-        pthread_mutex_unlock(&board_mutex);
 
         if(adicionar_inimigo(enemyList, posX, posY) == 0){
             fputs("ERROR - function gerar_inimigos: Couldn't add enemy to the list\n", stderr);
@@ -537,13 +573,11 @@ int gerar_itens(int quantidade){
 
         int valor = (rand() + 5) % 101;
 
-        pthread_mutex_lock(&board_mutex);
         // Gera novas posições, até achar uma desocupada
         do{
             posX = rand() % (boardSize);
             posY = rand() % (boardSize);
         }while(board[posY][posX] != '-');
-        pthread_mutex_unlock(&board_mutex);
 
         if(adicionar_item(itemList, posX, posY, valor) == 0){
             fputs("ERROR - function gerar_itens: Couldn't add item to the list\n", stderr);
@@ -560,25 +594,21 @@ int gerar_itens(int quantidade){
 // Gera obstáculos em posições aleatórias na lista de obstáculos
 // Em caso de sucesso retorna 1, em caso de falha retorna 0
 int gerar_obstaculos(int quantidade){
-    Obstaculo newObstacle;
+    int posX, posY;
 
-    pthread_mutex_lock(&board_mutex);
     for(int i = 0; i < quantidade; i++){
         // Gera novas posições, até achar uma desocupada
         do{
-            newObstacle.x = rand() % (boardSize);
-            newObstacle.y = rand() % (boardSize);
-        }while(board[newObstacle.y][newObstacle.x] != '-');
+            posX = rand() % (boardSize);
+            posY = rand() % (boardSize);
+        }while(board[posY][posY] != '-');
 
-        board[newObstacle.y][newObstacle.x] = 'X';
-
-        if(insert_linked_list(obstacleList, (nodeData_t) newObstacle, -1) == 0){
+        if(adicionar_obstaculo(obstacleList, posX, posY) == 0){
             fputs("ERROR - function gerar_obstaculos: Couldn't add obstacle to the list\n", stderr);
             fflush(stderr);
             return 0;
         }
     }
-    pthread_mutex_unlock(&board_mutex);
 
     #ifdef DEBUG
     print_list(obstacleList, stdout);
@@ -628,7 +658,7 @@ int adicionar_inimigo(linkedList_t *listaInimigo, int x, int y){
     }
 }
 
-// Adiciona um item com valor aleatória na posição especificada na lista de itens
+// Adiciona um item com valor especificado na posição especificada na lista de itens
 // Em caso de sucesso retorna 1, em caso de falha retorna 0
 int adicionar_item(linkedList_t *listaItem, int x, int y, int valor){
     Item newItem = {
@@ -643,6 +673,25 @@ int adicionar_item(linkedList_t *listaItem, int x, int y, int valor){
 
     if(insert_linked_list(listaItem, (nodeData_t) newItem, -1) == 0){
         fputs("ERROR - function adicionar_item: Couldn't add item to the list\n", stderr);
+        fflush(stderr);
+        return 0;
+    }
+}
+
+// Adiciona um obstaculo posição especificada na lista de obstaculos
+// Em caso de sucesso retorna 1, em caso de falha retorna 0
+int adicionar_obstaculo(linkedList_t *listaObstaculo, int x, int y){
+    Obstaculo newObstacle = {
+        .x = x,
+        .y = y
+    };
+
+    pthread_mutex_lock(&board_mutex);
+    board[newObstacle.y][newObstacle.x] = 'X';
+    pthread_mutex_unlock(&board_mutex);
+
+    if(insert_linked_list(listaObstaculo, (nodeData_t) newObstacle, -1) == 0){
+        fputs("ERROR - function adicionar_obstaculo: Couldn't add obstacle to the list\n", stderr);
         fflush(stderr);
         return 0;
     }
@@ -892,8 +941,20 @@ int mover_inimigo(int indexInimigo){
 
     // Lógica de decisão de movimento
     char direcao;
-    direcao = movimento_aleatorio();
 
+    // Distância entre o player e o inimigo
+    int dx = player->x - inimigo.x;
+    int dy = player->y - inimigo.y;
+    double dis = sqrt(dx*dx + dy*dy);
+
+    // Se o player está dentro do raio de visão do inimigo, o inimigo o persegue
+    if(dis <= RAIOINIMIGO){
+        direcao = movimento_perseguir(inimigo);
+    }
+    // Se não estiver ele se move aleatoriamente
+    else{
+        direcao = movimento_aleatorio();
+    }
 
     switch (direcao)
     {
@@ -991,6 +1052,182 @@ char movimento_aleatorio(){
     int quantidade_movimentos = strlen(movimentos_possiveis);
     int indice = rand() % quantidade_movimentos;
     return movimentos_possiveis[indice];
+}
+
+char movimento_perseguir(Inimigo i){
+    int dx = player->x - i.x;
+    int dy = player->y - i.y;
+
+    // Se direção for 1, vai tentar caminhar na direção vertical, se for 0 vai tentar caminhar na direção horizontal
+    int direcao = (abs(dy) > abs(dx))?1:0;
+
+    // Tenta ir na vertical
+    if(direcao == 1){
+        // Player acima
+        if(dy > 0){
+            // Vê se consegue se mover para cima
+            if(movimento_simples_vertical(i, dx, dy) == 'W'){
+                return 'W';
+            }
+
+            // Vê se consegue se mover em alguma direção horizontal
+            char movimento_horizontal = movimento_simples_horizontal(i, dx, dy);
+            if(movimento_horizontal != '\0'){
+                return movimento_horizontal;
+            }
+
+            // Se não conseguiu se mover para nenhum lugar, vai para baixo
+            return 'S';
+        }
+
+        // Player abaixo
+        else if(dy <= 0){
+            // Vê se consegue se mover para baixo
+            if(movimento_simples_vertical(i, dx, dy) == 'S'){
+                return 'S';
+            }
+
+            // Vê se consegue se mover em alguma direção horizontal
+            char movimento_horizontal = movimento_simples_horizontal(i, dx, dy);
+            if(movimento_horizontal != '\0'){
+                return movimento_horizontal;
+            }
+
+            // Se não conseguiu se mover para nenhum lugar, vai para cima
+            return 'W';
+        }
+    }
+    
+    // Tenta ir na horizontal
+    else if(direcao == 0){
+        // Player à direita
+        if(dx > 0){
+            // Vê se consegue se mover para direita
+            if(movimento_simples_horizontal(i, dx, dy) == 'D'){
+                return 'D';
+            }
+
+            // Vê se consegue se mover em alguma direção vertical
+            char movimento_vertical = movimento_simples_vertical(i, dx, dy);
+            if(movimento_vertical != '\0'){
+                return movimento_vertical;
+            }
+
+            // Se não conseguiu se mover para nenhum lugar, vai para esquerda
+            return 'A';
+        }
+
+        // Player à esquerda
+        else if(dx <= 0){
+            // Vê se consegue se mover para esquerda
+            if(movimento_simples_horizontal(i, dx, dy) == 'A'){
+                return 'A';
+            }
+
+            // Vê se consegue se mover em alguma direção vertical
+            char movimento_vertical = movimento_simples_vertical(i, dx, dy);
+            if(movimento_vertical != '\0'){
+                return movimento_vertical;
+            }
+
+            // Se não conseguiu se mover para nenhum lugar, vai para direita
+            return 'D';
+        }
+    }
+}
+
+char movimento_simples_vertical(Inimigo i, int dx, int dy){
+    // O player está acima
+    if(dy > 0){
+        // Move pra cima se puder
+        if(is_tile_enemy_walkable(i.x, i.y + 1) == 1){
+            return 'W';
+        }
+
+        // Se não, tenta se mover para baixo
+        if(is_tile_enemy_walkable(i.x, i.y - 1) == 1){
+            return 'S';
+        }
+    }
+
+    // O player está abaixo
+    else if(dy <= 0){
+        // Move pra baixo se puder
+        if(is_tile_enemy_walkable(i.x, i.y - 1) == 1){
+            return 'S';
+        }
+
+        // Se não, tenta se mover para cima
+        if(is_tile_enemy_walkable(i.x, i.y + 1) == 1){
+            return 'W';
+        }
+    }
+
+    // Se não conseguiu se mover pra lugar nenhum, retorna \0
+    return '\0';
+}
+
+char movimento_simples_horizontal(Inimigo i, int dx, int dy){
+    // O player está à direita
+    if(dx > 0){
+        // Move pra direita se puder
+        if(is_tile_enemy_walkable(i.x + 1, i.y) == 1){
+            return 'D';
+        }
+
+        // Se não, tenta se mover para esquerda
+        if(is_tile_enemy_walkable(i.x - 1, i.y) == 1){
+            return 'A';
+        }
+    }
+
+    // O player está à esquerda
+    else if(dx <= 0){
+        // Move pra esquerda se puder
+        if(is_tile_enemy_walkable(i.x - 1, i.y) == 1){
+            return 'A';
+        }
+
+        // Se não, tenta se mover para direita
+        if(is_tile_enemy_walkable(i.x + 1, i.y) == 1){
+            return 'D';
+        }
+    }
+
+    // Se não conseguiu se mover pra lugar nenhum, retorna \0
+    return '\0';
+}
+
+// Verifica se uma casa do tabuleiro é andável pelo player
+// Em caso de ser andável retorna 1, caso contrário retorna 0
+int is_tile_player_walkable(int x, int y){
+    // Verifica se está dentro do tabuleiro
+    if(x > boardSize - 1 || x < 0 || y > boardSize - 1 || y < 0){
+        return 0;
+    }
+
+    // Verifica se há um obstáculo
+    if(board[y][x] == 'X'){
+        return 0;
+    }
+
+    return 1;
+}
+
+// Verifica se uma casa do tabuleiro é andável pelos inimigos
+// Em caso de ser andável retorna 1, caso contrário retorna 0
+int is_tile_enemy_walkable(int x, int y){
+    // Verifica se está dentro do tabuleiro
+    if(x > boardSize - 1 || x < 0 || y > boardSize - 1 || y < 0){
+        return 0;
+    }
+
+    // Verifica se há um obstáculo
+    if(board[y][x] == 'X' || board[y][x] == 'I' || board[y][x] == 'E'){
+        return 0;
+    }
+
+    return 1;
 }
 
 // Adiciona um movimento especificado na fila
