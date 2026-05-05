@@ -29,9 +29,15 @@ typedef struct Item {
 } Item;
 
 typedef struct Movimento {
-    char acao; // 'M' para movimento, 'A' para ataque
+    char acao; // 'M' para movimento, 'E' para habilidade
     char direcao; // 'W' para cima, 'S' para baixo, 'A' para esquerda, 'D' para direita
 } Movimento;
+
+typedef enum {
+    FIREBALL,
+    LIGHTNING,
+    HEALING_SPELL
+} skill_t;
 
 typedef enum {
     MOVE,

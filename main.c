@@ -29,6 +29,9 @@
 #define MAXBOARDSZ 30
 #define MINBOARDSZ 4
 #define RAIOINIMIGO 2
+#define CUSTOCURA 40
+#define CUSTORAIO 30
+#define CUSTOFOGO 50
 
 // Variáveis globais
 char** board;
@@ -57,15 +60,11 @@ pthread_mutex_t board_mutex;
 sem_t log_queue_sem;
 sem_t render_sem;
 
+// Função principal de loop
 int loop();
+
+// Função de inicialização
 char** inicializar_tabuleiro(int N);
-
-void *renderer();
-void render_board();
-void mostrar_tabuleiro();
-
-int atualizar_posicoes();
-int atualizar_posicoes_de_lista(linkedList_t *lista);
 int gerar_inimigos(int quantidade);
 int gerar_itens(int quantidade);
 int gerar_obstaculos(int quantidade);
@@ -73,25 +72,48 @@ Personagem *criar_personagem(int x, int y);
 int adicionar_inimigo(linkedList_t *listaInimigo, int x, int y);
 int adicionar_item(linkedList_t *listaItem, int x, int y, int valor);
 int adicionar_obstaculo(linkedList_t *listaObstaculo, int x, int y);
+
+// Funções de renderização
+void *renderer();
+void render_board();
+void mostrar_tabuleiro();
+
+// Funções de processamento
+int atualizar_posicoes();
+int atualizar_posicoes_de_lista(linkedList_t *lista);
+int adicionar_comando_fila(queue_t *fila, char acao, char direcao);
+int processar_comando_fila(queue_t *fila);
+int dano_no_inimigo(int dano, int x, int y);
+int destruir_entidade(int x, int y);
+
+// Funções de ações do personagem
 int mover_personagem(Personagem *p, char direcao);
 int combate(Personagem *p, int indexInimigo);
 int coletar_item(Personagem *p, int indexInimigo);
+int usar_habilidade(Personagem *p, skill_t skill, char direcao);
+int bola_de_fogo(Personagem *p, char direcao);
+int relampago(Personagem *p, char direcao);
+int feitico_cura(Personagem *p);
+
+// Funções de ação dos inimigos
 int mover_inimigos();
 int mover_inimigo(int indexInimigo);
 char movimento_aleatorio();
 char movimento_perseguir(Inimigo i);
 char movimento_simples_vertical(Inimigo i, int dx, int dy);
 char movimento_simples_horizontal(Inimigo i, int dx, int dy);
+
+// Funções auxiliares
 int is_tile_player_walkable(int x, int y);
 int is_tile_enemy_walkable(int x, int y);
-int adicionar_comando_fila(queue_t *fila, char acao, char direcao);
-int processar_comando_fila(queue_t *fila);
 
+// Funções de log
 void *logger();
 int log_move(Movimento m);
 int log_item_collected(Item i);
 int log_combat(Inimigo i);
 
+// Função de encerramento
 int liberar_memoria(char **tabuleiro, Personagem *p, linkedList_t *listaInimigo, linkedList_t *listaItem, linkedList_t *listaObstaculo, queue_t *filaMovimento);
 
 int main(){
@@ -233,7 +255,7 @@ int loop(){
     }
     
     #ifndef DEBUG
-    printf("Acao ('WASD' para movimento, 'E' para ataque, 'Q' para sair do programa): \n");
+    printf("Acao ('WASD' para movimento, 'E' para habilidade, 'Q' para sair do programa): \n");
     fflush(stdout);
 
     while(!_kbhit());
@@ -309,7 +331,7 @@ int loop(){
     // Essa parte do loop só será executada caso seja selecionado ataque
     #ifndef DEBUG
 
-    printf("Direcao ('W' para cima, 'S' para baixo, 'A' para esquerda, 'D' para direita): \n");
+    printf("Habilidade ('C' para feitico de cura, 'R' para relampago, 'B' para bola de fogo): \n");
     fflush(stdout);
 
     while(!_kbhit());
@@ -325,22 +347,24 @@ int loop(){
 
     #endif
 
-    switch (input)
+    char skill = input;
+
+    switch (skill)
     {
-    case 'W':
-        /* TODO: Função para processar o ataque*/
+    case 'C':
+        usar_habilidade(player, HEALING_SPELL, 'W');
         break;
     
-    case 'A':
-        /* TODO: Função para processar o ataque*/
+    case 'R':
+        printf("Direcao: 'WASD'\n");
+        while(!_kbhit());
+        input = _getch();
+        input = toupper(input);
+        usar_habilidade(player, LIGHTNING, input);
         break;
     
-    case 'S':
-        /* TODO: Função para processar o ataque*/
-        break;
-    
-    case 'D':
-        /* TODO: Função para processar o ataque*/
+    case 'B':
+        usar_habilidade(player, FIREBALL, input);
         break;
     
     default:
@@ -892,6 +916,215 @@ int coletar_item(Personagem *p, int indexItem){
     #ifdef DEBUG
     print_list(itemList, stdout);
     #endif
+
+    return 1;
+}
+
+// Processa o uso de uma habilidade
+// Caso não tenha pontos o suficiente, retorna 0
+// Caso a habilidade seja usada, retorna 1
+// Caso dê erro, retorna -1
+int usar_habilidade(Personagem *p, skill_t skill, char direcao){
+    if(p == NULL){
+        fputs("ERROR - function usar_habilidade: pointer p points to NULL\n", stderr);
+        fflush(stderr);
+        return -1;
+    }
+
+    switch (skill)
+    {
+    case HEALING_SPELL:
+        if(p->pontos >= CUSTOCURA){
+            p->pontos -= CUSTOCURA;
+            feitico_cura(p);
+            return 1;
+        }
+
+        else{
+            printf("\nPontos insuficientes!\n%d pontos sao necessarios para usar a habilidade\n", CUSTOCURA);
+            return 0;
+        }
+        break;
+    
+    case LIGHTNING:
+        if(p->pontos >= CUSTORAIO){
+            p->pontos -= CUSTORAIO;
+            relampago(p, direcao);
+            return 1;
+        }
+
+        else{
+            printf("\nPontos insuficientes!\n%d pontos sao necessarios para usar a habilidade\n", CUSTORAIO);
+            return 0;
+        }
+        break;
+    
+    case FIREBALL:
+        if(p->pontos >= CUSTOFOGO){
+            p->pontos -= CUSTOFOGO;
+            //bola_de_fogo(p, direcao);
+            return 1;
+        }
+
+        else{
+            printf("\nPontos insuficientes!\n%d pontos sao necessarios para usar a habilidade\n", CUSTOFOGO);
+            return 0;
+        }
+        break;
+    
+    default:
+        break;
+    }
+}
+
+int bola_de_fogo(Personagem *p, char direcao);
+
+// Processa o feitiço de relâmpago
+// Caso dê certo, retorna 1
+// Caso dê errado, retorna 0
+int relampago(Personagem *p, char direcao){
+    int x = p->x, y = p->y;
+    for(int i = 1; i <= 3; i++){
+        switch (direcao)
+        {
+        case 'W':
+            y++;
+            break;
+        
+        case 'A':
+            x--;
+            break;
+        
+        case 'S':
+            y--;
+            break;
+        
+        case 'D':
+            x++;
+            break;
+        
+        default:
+            return 0;
+            break;
+        }
+        
+        if(
+            x < 0 || 
+            x > boardSize - 1 ||
+            y < 0 ||
+            y > boardSize - 1
+        ){
+            break;
+        }
+
+        switch (board[y][x])
+        {
+        case '-':
+            
+            break;
+        
+        case 'E':
+        {
+            dano_no_inimigo(50, x, y);
+
+            break;
+        }
+        case 'I':
+        case 'X':
+        {
+            destruir_entidade(x, y);
+
+            break;
+        }
+        default:
+            break;
+        }
+
+        pthread_mutex_lock(&board_mutex);
+        board[y][x] = '~';
+        pthread_mutex_unlock(&board_mutex);
+    }
+
+    mostrar_tabuleiro();
+    Sleep(1000);
+}
+
+// Dá o dano especificado no inimigo na posição especificada
+int dano_no_inimigo(int dano, int x, int y){
+    if(
+        x < 0 || 
+        x > boardSize - 1 ||
+        y < 0 ||
+        y > boardSize - 1
+    ){
+        fputs("ERROR - function dano_no_inimigo: Invalid position\n", stderr);
+        fflush(stderr);
+        return 0;
+    }
+
+    int indexInimigo = search_position_linked_list(enemyList, x, y);
+    linkedNode_t* noInimigo = search_linked_list(enemyList, indexInimigo);
+
+    Inimigo* inimigo = &noInimigo->data.inimigo;
+
+    inimigo->vida -= dano;
+    
+    if(inimigo->vida < 1){
+        destruir_entidade(x, y);
+    }
+}
+
+// Destroi a entidade na posição especificada
+// Retorna 1 em caso de sucesso
+// Retorna 0 em caso de fracasso
+int destruir_entidade(int x, int y){
+    if(
+        x < 0 || 
+        x > boardSize - 1 ||
+        y < 0 ||
+        y > boardSize - 1
+    ){
+        fputs("ERROR - function destruir_entidade: Invalid position\n", stderr);
+        fflush(stderr);
+        return 0;
+    }
+
+    linkedList_t* list = NULL;
+
+    switch (board[y][x])
+    {
+    case 'E':
+        list = enemyList;
+        break;
+    
+    case 'I':
+        list = itemList;
+        break;
+    
+    case 'X':
+        list = obstacleList;
+        break;
+    
+    default:
+        return 0;
+        break;
+    }
+
+    int index = search_position_linked_list(list, x, y);
+    remove_linked_list(list, index);
+}
+
+// Processa o feitiço de cura
+// Caso dê certo, retorna 1
+// Caso dê errado, retorna 0
+int feitico_cura(Personagem *p){
+    if(p == NULL){
+        fputs("ERROR - function feitico_cura: pointer p points to NULL\n", stderr);
+        fflush(stderr);
+        return 0;
+    }
+
+    p->vida += 25;
 
     return 1;
 }
