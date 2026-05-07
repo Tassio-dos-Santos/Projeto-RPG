@@ -1,6 +1,9 @@
+#ifndef DATA_STRUCTURE_H
+#define DATA_STRUCTURE_H
+
 #include <stdlib.h>
 #include <stdio.h>
-#include <inttypes.h>
+#include <stdint.h>
 
 // Jogo - Datatypes
 #define JOGO
@@ -8,30 +11,35 @@
 #define QUEUE
 #ifdef JOGO
 
-typedef struct {
-    int x, y;
-    int vida;
-    int pontos;
-} Personagem;
+typedef struct
+{
+    uint32_t x, y;
+} position_t;
 
 typedef struct {
-    int x, y;
-} Obstaculo;
+    position_t position;
+    int32_t life_points;
+    int32_t mana_points;
+} character_t;
 
-typedef struct Inimigo {
-    int x, y;
-    int vida;
-} Inimigo;
+typedef struct {
+    position_t position;
+} obstacle_t;
 
-typedef struct Item {
-    int x, y;
-    int valor;
-} Item;
+typedef struct enemy_t {
+    position_t position;
+    int32_t life_points;
+} enemy_t;
 
-typedef struct Movimento {
+typedef struct item_t {
+    position_t position;
+    int32_t valor;
+} item_t;
+
+typedef struct action_t {
     char acao; // 'M' para movimento, 'E' para habilidade
     char direcao; // 'W' para cima, 'S' para baixo, 'A' para esquerda, 'D' para direita
-} Movimento;
+} action_t;
 
 typedef enum {
     FIREBALL,
@@ -44,6 +52,7 @@ typedef enum {
     COMBAT,
     ITEM_COLLECTED,
     SKILL,
+    ENEMY_DAMAGED,
     VICTORY,
     DEFEAT
 } event_type_t;
@@ -77,11 +86,11 @@ typedef enum {
 
 typedef union nodeData_t{
     #ifdef JOGO
-    Personagem personagem;
-    Inimigo inimigo;
-    Item item;
-    Movimento movimento;
-    Obstaculo obstaculo;
+    character_t personagem;
+    enemy_t inimigo;
+    item_t item;
+    action_t movimento;
+    obstacle_t obstaculo;
     event_t evento;
     #endif
 
@@ -95,32 +104,50 @@ typedef union nodeData_t{
 #ifdef JOGO
 
 // ---- Declarações ----
+// Funções de comparação
+
+int compare_position(position_t p1, position_t p2);
 int compare_character(nodeData_t d1, nodeData_t d2);
 int compare_enemy(nodeData_t d1, nodeData_t d2);
 int compare_item(nodeData_t d1, nodeData_t d2);
 int compare_move(nodeData_t d1, nodeData_t d2);
 int compare_obstacle(nodeData_t d1, nodeData_t d2);
 int compare_event(nodeData_t d1, nodeData_t d2);
-int compare_list(nodeData_t d1, nodeData_t d2);
-int print_character(Personagem p, FILE* file);
-int print_enemy(Inimigo i, FILE* file);
-int print_item(Item i, FILE* file);
-int print_move(Movimento m, FILE* file);
-int print_obstacle(Obstaculo o, FILE* file);
+
+// Funções de impressão
+
+int print_position(position_t p, FILE* file);
+int print_character(character_t p, FILE* file);
+int print_enemy(enemy_t i, FILE* file);
+int print_item(item_t i, FILE* file);
+int print_move(action_t m, FILE* file);
+int print_obstacle(obstacle_t o, FILE* file);
 int print_event(event_t e, FILE* file);
 
 // ---- Métodos Básicos ----
 
+// ---------------- Comparar posições ---------------- 
+// Retorna 1 em caso dos personagens serem iguais, retorna 0 caso contrário
+int compare_position(position_t p1, position_t p2){
+    if(
+        memcmp(&p1, &p2, sizeof(position_t)) == 0
+    ){
+        return 1;
+    }
+    else{
+        return 0;
+    }
+}
+
 // ---------------- Comparar personagens ---------------- 
 // Retorna 1 em caso dos personagens serem iguais, retorna 0 caso contrário
 int compare_character(nodeData_t d1, nodeData_t d2){
-    Personagem p1 = d1.personagem;
-    Personagem p2 = d2.personagem;
+    character_t p1 = d1.personagem;
+    character_t p2 = d2.personagem;
     if(
-        p1.pontos == p2.pontos &&
-        p1.vida == p2.vida &&
-        p1.x == p2.x &&
-        p1.y == p2.y
+        p1.mana_points == p2.mana_points &&
+        p1.life_points == p2.life_points &&
+        compare_position(p1.position, p2.position) == 1
     ){
         return 1;
     }
@@ -132,12 +159,11 @@ int compare_character(nodeData_t d1, nodeData_t d2){
 // ---------------- Comparar inimigos ---------------- 
 // Retorna 1 em caso dos inimigos serem iguais, retorna 0 caso contrário
 int compare_enemy(nodeData_t d1, nodeData_t d2){
-    Inimigo i1 = d1.inimigo;
-    Inimigo i2 = d2.inimigo;
+    enemy_t i1 = d1.inimigo;
+    enemy_t i2 = d2.inimigo;
     if(
-        i1.vida == i2.vida &&
-        i1.x == i2.x &&
-        i1.y == i2.y
+        i1.life_points == i2.life_points &&
+        compare_position(i1.position, i2.position) == 1
     ){
         return 1;
     }
@@ -149,12 +175,11 @@ int compare_enemy(nodeData_t d1, nodeData_t d2){
 // ---------------- Comparar itens ---------------- 
 // Retorna 1 em caso dos itens serem iguais, retorna 0 caso contrário
 int compare_item(nodeData_t d1, nodeData_t d2){
-    Item i1 = d1.item;
-    Item i2 = d2.item;
+    item_t i1 = d1.item;
+    item_t i2 = d2.item;
     if(
         i1.valor == i2.valor &&
-        i1.x == i2.x &&
-        i1.y == i2.y
+        compare_position(i1.position, i2.position) == 1
     ){
         return 1;
     }
@@ -166,8 +191,8 @@ int compare_item(nodeData_t d1, nodeData_t d2){
 // ---------------- Comparar movimento ---------------- 
 // Retorna 1 em caso dos movimentos serem iguais, retorna 0 caso contrário
 int compare_move(nodeData_t d1, nodeData_t d2){
-    Movimento m1 = d1.movimento;
-    Movimento m2 = d2.movimento;
+    action_t m1 = d1.movimento;
+    action_t m2 = d2.movimento;
     if(
         m1.acao == m2.acao &&
         m1.direcao == m2.direcao
@@ -182,11 +207,10 @@ int compare_move(nodeData_t d1, nodeData_t d2){
 // ---------------- Comparar obstaculos ---------------- 
 // Retorna 1 em caso dos obstaculos serem iguais, retorna 0 caso contrário
 int compare_obstacle(nodeData_t d1, nodeData_t d2){
-    Obstaculo o1 = d1.obstaculo;
-    Obstaculo o2 = d2.obstaculo;
+    obstacle_t o1 = d1.obstaculo;
+    obstacle_t o2 = d2.obstaculo;
     if(
-        o1.x == o2.x &&
-        o1.y == o2.y
+        compare_position(o1.position, o2.position) == 1
     ){
         return 1;
     }
@@ -201,7 +225,9 @@ int compare_event(nodeData_t d1, nodeData_t d2){
     event_t o1 = d1.evento;
     event_t o2 = d2.evento;
     if(
-        memcmp(&o1, &o2, sizeof(event_t)) == 0
+        o1.type == o2.type &&
+        o1.main_entity == o2.main_entity &&
+        o1.secundary_entity == o2.secundary_entity
     ){
         return 1;
     }
@@ -210,71 +236,59 @@ int compare_event(nodeData_t d1, nodeData_t d2){
     }
 }
 
-// ---------------- Imprimir personagem ---------------- 
-int print_character(Personagem p, FILE* file){
-    int result = fprintf(file ,"Vida: %d\n", p.vida);
-    if(result == -1) return 0;
-
-    result = fprintf(file ,"Pontos: %d\n", p.pontos);
-    if(result == -1) return 0;
-
-    result = fprintf(file ,"Posicao: [%d, %d]\n", p.x, p.y);
-    if(result == -1) return 0;
+// ---------------- Imprimir posição ---------------- 
+// Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
+// Obs.: Dá fflush no file passado como argumento no fim da execução
+int print_position(position_t p, FILE* file){
+    if(fprintf(file ,"posicao: [%d, %d]\n", p.x, p.y) == -1) return 0;
 
     fflush(file);
 
     return 1;
+}
+
+// ---------------- Imprimir personagem ---------------- 
+// Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
+int print_character(character_t p, FILE* file){
+    if(fprintf(file ,"vida: %d\nmana: %d\n", p.life_points, p.mana_points) == -1) return 0;
+
+    return print_position(p.position, file);
 }
 
 // ---------------- Imprimir inimigo ---------------- 
-int print_enemy(Inimigo i, FILE* file){
-    int result = fprintf(file ,"Vida: %d\n", i.vida);
-    if(result == -1) return 0;
+// Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
+int print_enemy(enemy_t i, FILE* file){
+    if(fprintf(file ,"vida: %d\n", i.life_points) == -1) return 0;
 
-    result = fprintf(file ,"Posicao: [%d, %d]\n", i.x, i.y);
-    if(result == -1) return 0;
-
-    fflush(file);
-
-    return 1;
+    return print_position(i.position, file);
 }
 
 // ---------------- Imprimir item ---------------- 
-int print_item(Item i, FILE* file){
-    int result = fprintf(file ,"Valor: %d\n", i.valor);
-    if(result == -1) return 0;
+// Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
+int print_item(item_t i, FILE* file){
+    if(fprintf(file ,"valor: %d\n", i.valor) == -1) return 0;
 
-    result = fprintf(file ,"Posicao: [%d, %d]\n", i.x, i.y);
-    if(result == -1) return 0;
-    fflush(file);
-
-    return 1;
+    return print_position(i.position, file);
 }
 
 // ---------------- Imprimir movimento ---------------- 
-int print_move(Movimento m, FILE* file){
-    int result = fprintf(file ,"Acao: %c\n", m.acao);
-    if(result == -1) return 0;
+// Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
+int print_move(action_t m, FILE* file){
+    if(fprintf(file ,"acao: %c\ndirecao: %c\n", m.acao, m.direcao) == -1) return 0;
 
-    result = fprintf(file ,"Direcao: %c\n", m.direcao);
-    if(result == -1) return 0;
     fflush(file);
 
     return 1;
 }
 
 // ---------------- Imprimir obstaculo ---------------- 
-// Retorna 1 em caso de sucesso, retorna 0 caso fracasse
-int print_obstacle(Obstaculo o, FILE* file){
-    int result = fprintf(file ,"Posicao: [%d, %d]\n", o.x, o.y);
-    fflush(file);
-
-    // retorna 0 se result = -1 e retorna 1 caso contrário
-    return (result == -1)? 0:1;
+// Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
+int print_obstacle(obstacle_t o, FILE* file){
+    return print_position(o.position, file);
 }
 
 // ---------------- Imprimir evento ---------------- 
-// Retorna 1 em caso de sucesso, retorna 0 caso fracasse
+// Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
 int print_event(event_t e, FILE* file){
     switch (e.type)
     {
@@ -285,8 +299,12 @@ int print_event(event_t e, FILE* file){
             fflush(stderr);
             return 0;
         }
-        Personagem *p = (Personagem *) e.main_entity;
-        fprintf(file ,"Personagem moveu para a posicao [%d, %d]\n\n", p->x, p->y);
+        character_t p = *(character_t *) e.main_entity;
+        fprintf(file ,"player moveu para a ");
+
+        print_position(p.position, file);
+
+        fprintf(file ,"\n");
         break;
     }
     case COMBAT:
@@ -301,9 +319,14 @@ int print_event(event_t e, FILE* file){
             fflush(stderr);
             return 0;
         }
-        Personagem *p = (Personagem *) e.main_entity;
-        Inimigo *i = (Inimigo *) e.secundary_entity;
-        fprintf(file ,"Personagem combateu o inimigo na posicao [%d, %d]\nVida atual do personagem: %d      Vida atual do inimigo: %d\n\n", i->x, i->y, p->vida, i->vida);
+        character_t p = *(character_t *) e.main_entity;
+        enemy_t i = *(enemy_t *) e.secundary_entity;
+
+        fprintf(file ,"Player combateu o inimigo na ");
+
+        print_position(i.position, file);
+
+        fprintf(file ,"Vida atual do Player: %d      Vida atual do inimigo: %d\n\n", p.life_points, i.life_points);
         break;
     }
     case ITEM_COLLECTED:
@@ -318,16 +341,46 @@ int print_event(event_t e, FILE* file){
             fflush(stderr);
             return 0;
         }
-        Personagem *p = (Personagem *) e.main_entity;
-        Item *i = (Item *) e.secundary_entity;
-        fprintf(file ,"Personagem coletou o item na posicao [%d, %d]\nPontuacao atual do personagem: %d      Valor do item: %d\n\n", i->x, i->y, p->pontos, i->valor);
+        character_t p = *(character_t *) e.main_entity;
+        item_t i = *(item_t *) e.secundary_entity;
+
+        fprintf(file ,"Player coletou o item na ");
+
+        print_position(i.position, file);
+
+        fprintf(file ,"Mana atual do Player: %d      Valor do item: %d\n\n", p.mana_points, i.valor);
+
         break;
     }
     case SKILL:
     {
-        /*Personagem *p = (Personagem *) e.main_entity;
+        /*character_t *p = (character_t *) e.main_entity;
 
         fprintf(file ,"\n\n");*/
+        break;
+    }
+    case ENEMY_DAMAGED:
+    {
+        if(e.main_entity == NULL){
+            fputs("ERROR - function print_event: Invalid main entity\n", stderr);
+            fflush(stderr);
+            return 0;
+        }
+        if(e.secundary_entity == NULL){
+            fputs("ERROR - function print_event: Invalid secundary entity\n", stderr);
+            fflush(stderr);
+            return 0;
+        }
+        character_t p = *(character_t *) e.main_entity;
+        enemy_t i = *(enemy_t *) e.secundary_entity;
+
+        fprintf(file ,"O inimigo na ");
+
+        print_position(i.position, file);
+
+        fprintf(file, "levou dano\n");
+
+        fprintf(file ,"Mana atual do Player: %d      Vida atual do inimigo: %d\n\n", p.mana_points, i.life_points);
         break;
     }
     case VICTORY:
@@ -337,8 +390,8 @@ int print_event(event_t e, FILE* file){
             fflush(stderr);
             return 0;
         }
-        Personagem *p = (Personagem *) e.main_entity;
-        fprintf(file ,"Player venceu\nVida do personagem: %d      Pontuacao do personagem: %d\n\n", p->vida, p->pontos);
+        character_t p = *(character_t *) e.main_entity;
+        fprintf(file ,"Player venceu\nVida do personagem: %d      Mana do personagem: %d\n\n", p.life_points, p.mana_points);
         break;
     }
     case DEFEAT:
@@ -348,8 +401,8 @@ int print_event(event_t e, FILE* file){
             fflush(stderr);
             return 0;
         }
-        Personagem *p = (Personagem *) e.main_entity;
-        fprintf(file ,"Player perdeu\nVida do personagem: %d      Pontuacao do personagem: %d\n\n", p->vida, p->pontos);
+        character_t p = *(character_t *) e.main_entity;
+        fprintf(file ,"Player perdeu\nVida do personagem: %d      Mana do personagem: %d\n\n", p.life_points, p.mana_points);
         break;
     }
     default:
@@ -388,14 +441,15 @@ typedef int (*comparison)(union nodeData_t, union nodeData_t);
 // Declarações
 
 int isDataEmpty(nodeData_t d);
+int compare_list(nodeData_t d1, nodeData_t d2);
+void print_list(linkedList_t* list, FILE* file);
 linkedList_t* create_linked_list(int listType);
 int insert_linked_list(linkedList_t* list, nodeData_t data, int index);
 int remove_linked_list(linkedList_t* list, int index);
 linkedNode_t* search_linked_list(linkedList_t* list, int index);
 int delete_linked_list(linkedList_t* list);
 int search_data_linked_list(linkedList_t* list, nodeData_t data);
-int search_position_linked_list(linkedList_t* list, int x, int y);
-void print_list(linkedList_t* list, FILE* file);
+int search_position_linked_list(linkedList_t* list, position_t position_searched);
 
 // ---- Métodos Básicos ----
 
@@ -706,43 +760,35 @@ int search_data_linked_list(linkedList_t* list, nodeData_t data){
 #ifdef JOGO
 // ------------ Pesquisa por Posição no Tabuleiro ------------
 // Retorna o indíce do nó em caso de sucesso, retorna -1 em caso de fracasso
-int search_position_linked_list(linkedList_t* list, int x, int y){
+int search_position_linked_list(linkedList_t* list, position_t searched_position){
     if(list->length < 1){
         fputs("ERROR - function search_data_linked_list: Empty list\n", stderr);
         fflush(stderr);
         return -1;
     }
 
-    linkedNode_t* currentNode = list->head;
+    linkedNode_t* current_node = list->head;
 
     for(int i = 0; i < list->length; i++){
-        // Se o personagem do nó for igual ao do argumento, retorna o nó atual
+        position_t current_position;
         switch (list->listType)
         {
         case CHARACTER_TYPE:
-            if(x == currentNode->data.personagem.x && y == currentNode->data.personagem.y){
-                return i;
-            }
+            current_position = current_node->data.personagem.position;
             break;
         
             
         case ENEMY_TYPE:
-            if(x == currentNode->data.inimigo.x && y == currentNode->data.inimigo.y){
-                return i;
-            }
+            current_position = current_node->data.personagem.position;
             break;
         
             
         case ITEM_TYPE:
-            if(x == currentNode->data.item.x && y == currentNode->data.item.y){
-                return i;
-            }
+            current_position = current_node->data.personagem.position;
             break;
         
         case OBSTACLE_TYPE:
-            if(x == currentNode->data.obstaculo.x && y == currentNode->data.obstaculo.y){
-                return i;
-            }
+            current_position = current_node->data.personagem.position;
             break;
         
         default:
@@ -752,8 +798,11 @@ int search_position_linked_list(linkedList_t* list, int x, int y){
             break;
         }
 
+        // Se a posição atual for igual a procurada retorna i
+        if(compare_position(current_position, searched_position) == 1) return i;
+
         // Se não passa pro próximo nó
-        currentNode = currentNode->next;
+        current_node = current_node->next;
     }
 
     return -1;
@@ -1050,5 +1099,7 @@ int delete_stack(stack_t* stack){
 // Deque - Definição de Datatypes e Métodos
 
 #ifdef DEQUE
+
+#endif
 
 #endif
