@@ -1,128 +1,8 @@
-#ifndef DATA_STRUCTURE_H
-#define DATA_STRUCTURE_H
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
-
-// Jogo - Datatypes
-#define JOGO
-#define LINKEDLIST
-#define QUEUE
-#ifdef JOGO
-
-typedef struct
-{
-    uint32_t x, y;
-} position_t;
-
-typedef struct {
-    position_t position;
-    int32_t life_points;
-    int32_t mana_points;
-} character_t;
-
-typedef struct {
-    position_t position;
-} obstacle_t;
-
-typedef struct enemy_t {
-    position_t position;
-    int32_t life_points;
-} enemy_t;
-
-typedef struct item_t {
-    position_t position;
-    int32_t valor;
-} item_t;
-
-typedef struct action_t {
-    char acao; // 'M' para movimento, 'E' para habilidade
-    char direcao; // 'W' para cima, 'S' para baixo, 'A' para esquerda, 'D' para direita
-} action_t;
-
-typedef enum {
-    FIREBALL,
-    LIGHTNING,
-    HEALING_SPELL
-} skill_t;
-
-typedef enum {
-    MOVE,
-    COMBAT,
-    ITEM_COLLECTED,
-    SKILL,
-    ENEMY_DAMAGED,
-    VICTORY,
-    DEFEAT
-} event_type_t;
-
-typedef struct {
-    event_type_t type;
-    void *main_entity, *secundary_entity;
-} event_t;
-
-#endif
-
-// Linked List - Declaração de Datatypes e Defines
-
-#ifdef LINKEDLIST
-
-struct linkedList_t;
-
-typedef enum {
-    #ifdef JOGO
-    CHARACTER_TYPE,
-    ENEMY_TYPE,
-    ITEM_TYPE,
-    MOVE_TYPE,
-    OBSTACLE_TYPE,
-    EVENT_TYPE,
-    #endif
-    LIST_TYPE
-} list_type_t;
-
-#endif
-
-typedef union nodeData_t{
-    #ifdef JOGO
-    character_t personagem;
-    enemy_t inimigo;
-    item_t item;
-    action_t movimento;
-    obstacle_t obstaculo;
-    event_t evento;
-    #endif
-
-    #ifdef LINKEDLIST
-    struct linkedList_t* lista;
-    #endif
-} nodeData_t;
+#include "data_structures.h"
 
 // Jogo - Métodos 
 
 #ifdef JOGO
-
-// ---- Declarações ----
-// Funções de comparação
-
-int compare_position(position_t p1, position_t p2);
-int compare_character(nodeData_t d1, nodeData_t d2);
-int compare_enemy(nodeData_t d1, nodeData_t d2);
-int compare_item(nodeData_t d1, nodeData_t d2);
-int compare_move(nodeData_t d1, nodeData_t d2);
-int compare_obstacle(nodeData_t d1, nodeData_t d2);
-int compare_event(nodeData_t d1, nodeData_t d2);
-
-// Funções de impressão
-
-int print_position(position_t p, FILE* file);
-int print_character(character_t p, FILE* file);
-int print_enemy(enemy_t i, FILE* file);
-int print_item(item_t i, FILE* file);
-int print_move(action_t m, FILE* file);
-int print_obstacle(obstacle_t o, FILE* file);
-int print_event(event_t e, FILE* file);
 
 // ---- Métodos Básicos ----
 
@@ -225,9 +105,7 @@ int compare_event(nodeData_t d1, nodeData_t d2){
     event_t o1 = d1.evento;
     event_t o2 = d2.evento;
     if(
-        o1.type == o2.type &&
-        o1.main_entity == o2.main_entity &&
-        o1.secundary_entity == o2.secundary_entity
+        memcmp(&o1, &o2, sizeof(event_t)) == 0
     ){
         return 1;
     }
@@ -289,120 +167,196 @@ int print_obstacle(obstacle_t o, FILE* file){
 
 // ---------------- Imprimir evento ---------------- 
 // Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
-int print_event(event_t e, FILE* file){
-    switch (e.type)
+int print_event(event_t event, FILE* file){
+    switch (event.event_type)
     {
     case MOVE:
     {
-        if(e.main_entity == NULL){
-            fputs("ERROR - function print_event: Invalid main entity\n", stderr);
-            fflush(stderr);
-            return 0;
-        }
-        character_t p = *(character_t *) e.main_entity;
-        fprintf(file ,"player moveu para a ");
+        // Caso o main entity seja um character
+        if(event.main_entity_type == CHARACTER){
+            character_t player = event.main_entity.character;
 
-        print_position(p.position, file);
+            fprintf(file ,"player moveu para a ");
+
+            print_position(player.position, file);
+        }
+
+        // Caso o main entity seja um enemy
+        else if(event.main_entity_type == ENEMY){
+            enemy_t enemy = event.main_entity.enemy;
+
+            fprintf(file ,"Inimigo moveu para a ");
+
+            print_position(enemy.position, file);
+        }
 
         fprintf(file ,"\n");
         break;
     }
     case COMBAT:
     {
-        if(e.main_entity == NULL){
-            fputs("ERROR - function print_event: Invalid main entity\n", stderr);
+        // Caso o main entity seja um character e o secundary seja um enemy
+        if(event.main_entity_type == CHARACTER && event.secundary_entity_type == ENEMY){
+            character_t player = event.main_entity.character;
+            enemy_t enemy = event.secundary_entity.enemy;
+
+            fprintf(file ,"Player combateu o inimigo na ");
+
+            print_position(enemy.position, file);
+
+            fprintf(file ,"Vida atual do Player: %d      Vida atual do inimigo: %d\n\n", player.life_points, enemy.life_points);
+        }
+
+        // Caso o main entity seja um enemy e o secundary seja um character
+        else if(event.main_entity_type == ENEMY && event.secundary_entity_type == CHARACTER){
+            character_t player = event.secundary_entity.character;
+            enemy_t enemy = event.main_entity.enemy;
+
+            fprintf(file ,"O inimigo combateu o player na ");
+
+            print_position(player.position, file);
+
+            fprintf(file ,"Vida atual do Player: %d      Vida atual do inimigo: %d\n\n", player.life_points, enemy.life_points);
+        }
+
+        // Caso não seja desses tipos, dá erro
+        else{
+            fputs("ERROR - function print_event: Invalid entity types\n", stderr);
             fflush(stderr);
             return 0;
         }
-        if(e.secundary_entity == NULL){
-            fputs("ERROR - function print_event: Invalid secundary entity\n", stderr);
-            fflush(stderr);
-            return 0;
-        }
-        character_t p = *(character_t *) e.main_entity;
-        enemy_t i = *(enemy_t *) e.secundary_entity;
-
-        fprintf(file ,"Player combateu o inimigo na ");
-
-        print_position(i.position, file);
-
-        fprintf(file ,"Vida atual do Player: %d      Vida atual do inimigo: %d\n\n", p.life_points, i.life_points);
+        
         break;
     }
     case ITEM_COLLECTED:
     {
-        if(e.main_entity == NULL){
-            fputs("ERROR - function print_event: Invalid main entity\n", stderr);
+        // Caso o main entity seja um character e o secundary seja um enemy
+        if(event.main_entity_type == CHARACTER && event.secundary_entity_type == ITEM){
+            character_t player = event.main_entity.character;
+            item_t item = event.secundary_entity.item;
+
+            fprintf(file ,"Player coletou o item na ");
+
+            print_position(item.position, file);
+
+            fprintf(file ,"Mana atual do Player: %d      Valor do item: %d\n\n", player.mana_points, item.valor);
+        }
+
+        // Caso não seja desses tipos, dá erro
+        else{
+            fputs("ERROR - function print_event: Invalid entity types\n", stderr);
             fflush(stderr);
             return 0;
         }
-        if(e.secundary_entity == NULL){
-            fputs("ERROR - function print_event: Invalid secundary entity\n", stderr);
-            fflush(stderr);
-            return 0;
-        }
-        character_t p = *(character_t *) e.main_entity;
-        item_t i = *(item_t *) e.secundary_entity;
-
-        fprintf(file ,"Player coletou o item na ");
-
-        print_position(i.position, file);
-
-        fprintf(file ,"Mana atual do Player: %d      Valor do item: %d\n\n", p.mana_points, i.valor);
 
         break;
     }
     case SKILL:
     {
-        /*character_t *p = (character_t *) e.main_entity;
+        // Caso o main entity seja um character
+        if(event.main_entity_type == CHARACTER){
+            character_t player = event.main_entity.character;
+            skill_t skill = event.auxiliar_data.skill;
 
-        fprintf(file ,"\n\n");*/
+            fprintf(file ,"Player usou a skill ");
+
+            switch (skill)
+            {
+            case HEALING_SPELL:
+                fprintf(file ,"Feitiço de cura\n");
+                break;
+            
+            case FIREBALL:
+                fprintf(file ,"Feitiço de bola de fogo\n");
+                break;
+            
+            case LIGHTNING:
+                fprintf(file ,"Feitiço de relampago\n");
+                break;
+            
+            default:
+                break;
+            }
+
+            fprintf(file ,"Mana atual do Player: %d\n\n", player.mana_points);
+        }
+
+        // Caso não seja desses tipos, dá erro
+        else{
+            fputs("ERROR - function print_event: Invalid entity type\n", stderr);
+            fflush(stderr);
+            return 0;
+        }
         break;
     }
-    case ENEMY_DAMAGED:
+    case DAMAGE:
     {
-        if(e.main_entity == NULL){
-            fputs("ERROR - function print_event: Invalid main entity\n", stderr);
+        // Caso o main entity seja um character
+        if(event.main_entity_type == CHARACTER){
+            character_t player = event.main_entity.character;
+            int32_t damage = event.auxiliar_data.life_points;
+
+            fprintf(file ,"Player levou %d de dano\n", damage);
+
+            fprintf(file ,"Vida atual do Player: %d\n\n", player.life_points);
+        }
+
+        // Caso o main entity seja um enemy
+        else if(event.main_entity_type == ENEMY){
+            enemy_t enemy = event.main_entity.enemy;
+            int32_t damage = event.auxiliar_data.life_points;
+
+            fprintf(file ,"Inimigo levou %d de dano\n", damage);
+
+            fprintf(file ,"Vida atual do inimigo: %d\t", enemy.life_points);
+
+            print_position(enemy.position, file);
+            fprintf(file, "\n");
+        }
+
+        // Caso não seja desses tipos, dá erro
+        else{
+            fputs("ERROR - function print_event: Invalid entity types\n", stderr);
             fflush(stderr);
             return 0;
         }
-        if(e.secundary_entity == NULL){
-            fputs("ERROR - function print_event: Invalid secundary entity\n", stderr);
-            fflush(stderr);
-            return 0;
-        }
-        character_t p = *(character_t *) e.main_entity;
-        enemy_t i = *(enemy_t *) e.secundary_entity;
 
-        fprintf(file ,"O inimigo na ");
-
-        print_position(i.position, file);
-
-        fprintf(file, "levou dano\n");
-
-        fprintf(file ,"Mana atual do Player: %d      Vida atual do inimigo: %d\n\n", p.mana_points, i.life_points);
         break;
     }
     case VICTORY:
     {
-        if(e.main_entity == NULL){
-            fputs("ERROR - function print_event: Invalid main entity\n", stderr);
+        // Caso o main entity seja um character
+        if(event.main_entity_type == CHARACTER){
+            character_t player = event.main_entity.character;
+
+            fprintf(file ,"Player venceu\nVida do personagem: %d      Mana do personagem: %d\n\n", player.life_points, player.mana_points);
+        }
+
+        // Caso não seja desses tipos, dá erro
+        else{
+            fputs("ERROR - function print_event: Invalid entity types\n", stderr);
             fflush(stderr);
             return 0;
         }
-        character_t p = *(character_t *) e.main_entity;
-        fprintf(file ,"Player venceu\nVida do personagem: %d      Mana do personagem: %d\n\n", p.life_points, p.mana_points);
+        
         break;
     }
     case DEFEAT:
     {
-        if(e.main_entity == NULL){
-            fputs("ERROR - function print_event: Invalid main entity\n", stderr);
+        // Caso o main entity seja um character
+        if(event.main_entity_type == CHARACTER){
+            character_t player = event.main_entity.character;
+
+            fprintf(file ,"Player perdeu\nVida do personagem: %d      Mana do personagem: %d\n\n", player.life_points, player.mana_points);
+        }
+
+        // Caso não seja desses tipos, dá erro
+        else{
+            fputs("ERROR - function print_event: Invalid entity types\n", stderr);
             fflush(stderr);
             return 0;
         }
-        character_t p = *(character_t *) e.main_entity;
-        fprintf(file ,"Player perdeu\nVida do personagem: %d      Mana do personagem: %d\n\n", p.life_points, p.mana_points);
+
         break;
     }
     default:
@@ -416,40 +370,9 @@ int print_event(event_t e, FILE* file){
 
 #endif
 
-// Linked List - Definição de Datatypes e Métodos
-
-#ifdef LINKEDLIST
-
-// Linked List - Definição de Datatypes
-
-typedef struct linkedNode_t {
-    nodeData_t data;
-    struct linkedNode_t * next;
-} linkedNode_t;
-
-typedef struct linkedList_t {
-    list_type_t listType; // CHARACTER_TYPE - ENEMY_TYPE - ITEM_TYPE - MOVE_TYPE - LIST_TYPE
-    linkedNode_t * head, * tail;
-    int length;
-} linkedList_t;
-
-// Datatype de funções de comparação entre nós
-typedef int (*comparison)(union nodeData_t, union nodeData_t);
-
 // Linked List - Métodos
 
-// Declarações
-
-int isDataEmpty(nodeData_t d);
-int compare_list(nodeData_t d1, nodeData_t d2);
-void print_list(linkedList_t* list, FILE* file);
-linkedList_t* create_linked_list(int listType);
-int insert_linked_list(linkedList_t* list, nodeData_t data, int index);
-int remove_linked_list(linkedList_t* list, int index);
-linkedNode_t* search_linked_list(linkedList_t* list, int index);
-int delete_linked_list(linkedList_t* list);
-int search_data_linked_list(linkedList_t* list, nodeData_t data);
-int search_position_linked_list(linkedList_t* list, position_t position_searched);
+#ifdef LINKEDLIST
 
 // ---- Métodos Básicos ----
 
@@ -907,44 +830,17 @@ void print_list(linkedList_t* list, FILE* file){
 
 #endif
 
-// Double Linked List - Definição de Datatypes e Métodos
+// Double Linked List - Métodos
 
 #ifdef DOUBLELINKEDLIST
-
-// Double Linked List - Datatypes
-
-typedef struct doubleLinkedNode {
-    nodeData_t data;
-    struct doubleLinkedNode * next, * previous;
-} doubleLinkedNode_t;
-
-typedef struct doubleLinkedList {
-    int listType; // CHARACTER_TYPE - ENEMY_TYPE - ITEM_TYPE - MOVE_TYPE - LIST_TYPE
-    linkedNode_t * head, * tail;
-    int length;
-} doubleLinkedList_t;
 
 
 
 #endif
 
-// Queue - Definição de Datatypes e Métodos
-
-#ifdef QUEUE
-
-// Queue - Datatypes
-
-typedef linkedList_t queue_t;
-
 // Queue - Métodos
 
-// ---- Declarações ----
-queue_t* create_queue(int listType);
-nodeData_t front(queue_t* queue);
-int enqueue(queue_t* queue, nodeData_t data);
-nodeData_t dequeue(queue_t* queue);
-void print_queue(queue_t* queue, FILE* file);
-int delete_queue(queue_t* queue);
+#ifdef QUEUE
 
 // ---- Métodos Básicos ----
 
@@ -1012,23 +908,9 @@ int delete_queue(queue_t* queue){
 
 #endif
 
-// Stack - Definição de Datatypes e Métodos
-
-#ifdef STACK
-
-// Stack - Datatypes
-
-typedef linkedList_t stack_t;
-
 // Stack - Métodos
 
-// ---- Declarações ----
-stack_t* create_stack(int listType);
-nodeData_t top(stack_t* stack);
-int push(stack_t* stack, nodeData_t data);
-nodeData_t pop(stack_t* stack);
-void print_stack(stack_t* stack);
-int delete_stack(stack_t* stack);
+#ifdef STACK
 
 // ---- Métodos Básicos ----
 
@@ -1096,10 +978,8 @@ int delete_stack(stack_t* stack){
 
 #endif
 
-// Deque - Definição de Datatypes e Métodos
+// Deque - Métodos
 
 #ifdef DEQUE
-
-#endif
 
 #endif

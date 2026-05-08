@@ -10,10 +10,12 @@
 #include <semaphore.h>
 #include <signal.h>
 
+#include "logger.h"
+
+#include "renderer.h"
+
 #define JOGO
-#define LINKEDLIST
-#define QUEUE
-#include "data_structures.c"
+#include "data_structures.h"
 
 // #define DEBUG
 
@@ -29,7 +31,7 @@
 #define INITIAL_HP 100
 #define MAX_BOARD_SIZE 30
 #define MIN_BOARD_SIZE 4
-#define ENEMY_VIEW_RADIUS 2
+#define ENEMY_VIEW_RADIUS 3.5
 #define HEALING_SPELL_COST 40
 #define HEALING_SPELL_HEALING 20
 #define LIGHTNING_SPELL_COST 100
@@ -57,8 +59,8 @@ volatile sig_atomic_t end_renderer = 0;
 volatile sig_atomic_t display_updated = 0;
 
 // Mutexes
-pthread_mutex_t log_queue_mutex;
 pthread_mutex_t board_mutex;
+pthread_mutex_t log_queue_mutex;
 
 // Semáforos
 sem_t log_queue_sem;
@@ -77,11 +79,6 @@ int adicionar_inimigo(linkedList_t *lista_inimigo, position_t position);
 int adicionar_item(linkedList_t *lista_item, position_t position, int valor);
 int adicionar_obstaculo(linkedList_t *listaObstaculo, position_t position);
 
-// Funções de renderização
-void *renderer();
-void render_board();
-void mostrar_tabuleiro();
-
 // Funções de processamento
 int atualizar_posicoes();
 int atualizar_posicoes_de_lista(linkedList_t *lista);
@@ -92,7 +89,7 @@ int destruir_entidade(position_t position);
 
 // Funções de ações do personagem
 int mover_personagem(character_t *personagem, char direcao);
-int combate(character_t *personagem, position_t enemy_position);
+int combate(character_t *personagem, position_t enemy_position, entity_type_t attacker_type);
 int coletar_item(character_t *personagem, position_t item_position);
 int usar_habilidade(character_t *personagem, skill_t skill, char direcao);
 int bola_de_fogo(character_t *personagem, char direcao);
@@ -111,13 +108,6 @@ char movimento_simples_horizontal(enemy_t i, int dx, int dy);
 int is_tile_player_walkable(position_t position);
 int is_tile_enemy_walkable(position_t position);
 int is_position_valid(position_t position);
-
-// Funções de log
-void *logger();
-int log_move(action_t m);
-int log_item_collected(item_t i);
-int log_combat(enemy_t i);
-int log_damage(enemy_t inimigo);
 
 // Função de encerramento
 int liberar_memoria(char **tabuleiro, character_t *p, linkedList_t *listaInimigo, linkedList_t *listaItem, linkedList_t *listaObstaculo, queue_t *filaMovimento);
@@ -433,70 +423,6 @@ char** inicializar_tabuleiro(int N){
     }
 
     return tabuleiro;
-}
-
-void *renderer(){
-    while(!end_renderer){
-        sem_wait(&render_sem);
-        if(end_renderer) break;
-
-        pthread_mutex_lock(&board_mutex);
-        if(end_renderer) break;
-
-        render_board();
-        display_updated = 1;
-
-        pthread_mutex_unlock(&board_mutex);
-    }
-}
-
-void render_board(){
-    #ifndef DEBUG
-    system("cls");
-    #endif
-    printf("Vida do personagem: %d \tMana do personagem: %d\n\n", player->life_points, player->mana_points);
-    for(int i = boardSize - 1; i > - 1; i--){
-        for(int j = 0; j < boardSize; j++){
-            switch (board[i][j])
-            {
-            case 'P':
-                printf("\x1b[32m");
-                break;
-            
-            case 'E':
-                printf("\x1b[31m");
-                break;
-            
-            case 'I':
-                printf("\x1b[34m");
-                break;
-            
-            case 'X':
-                printf("\x1b[30m");
-                break;
-            
-            case '~':
-                printf("\x1b[1;36m");
-                break;
-            
-            case '@':
-                printf("\x1b[1;31m");
-                break;
-            
-            default:
-                break;
-            }
-            printf(" %c\x1b[0m", board[i][j]);
-        }
-        printf("\n\0");
-    }
-    printf("\n\n");
-}
-
-// Limpa a tela e mostrar as informações do personagem e o tabuleiro
-void mostrar_tabuleiro(){
-    display_updated = 0;
-    sem_post(&render_sem);
 }
 
 // Atualiza o tabuleiro (matriz de caracteres) de acordo com as posições das entidades nas listas
@@ -858,7 +784,7 @@ int mover_personagem(character_t *personagem, char direcao){
     
     case 'E':
     {
-        int resultado_combate = combate(personagem, next_position);
+        int resultado_combate = combate(personagem, next_position, CHARACTER);
         if(resultado_combate == -1){
             fputs("ERROR - function mover_personagem: Couldn't process combat\n", stderr);
             fflush(stderr);
@@ -920,7 +846,7 @@ int mover_personagem(character_t *personagem, char direcao){
 // Caso o inimigo morra, retorna 1
 // Caso o player morra, retorna 2
 // Caso dê erro, retorna -1
-int combate(character_t *personagem, position_t enemy_position){
+int combate(character_t *personagem, position_t enemy_position, entity_type_t attacker_type){
     if(is_position_valid(enemy_position) == 0){
         fputs("ERROR - function combate: Invalid position\n", stderr);
         fflush(stderr);
@@ -962,7 +888,12 @@ int combate(character_t *personagem, position_t enemy_position){
     // Dá dano no dado local de inimigo
     inimigo.life_points -= 20;
 
-    log_combat(inimigo);
+    // Caso o atacante seja o player, ele será a main entity do log
+    if(attacker_type == CHARACTER) log_combat((entity_t) *personagem, (entity_t) inimigo, attacker_type);
+
+    // Caso o atacante seja o inimigo, ele será a main entity do log
+    else if(attacker_type == ENEMY) log_combat((entity_t) inimigo, (entity_t) *personagem, attacker_type);
+    
 
     // Caso os dois fiquem vivos
     if(personagem->life_points > 0 && inimigo.life_points > 0){
@@ -1049,7 +980,7 @@ int usar_habilidade(character_t *personagem, skill_t skill, char direcao){
         if(personagem->mana_points >= HEALING_SPELL_COST){
             personagem->mana_points -= HEALING_SPELL_COST;
             feitico_cura(personagem);
-            result = 1;
+            return 1;
         }
 
         else{
@@ -1282,6 +1213,8 @@ int dano_no_inimigo(int dano, position_t position){
     enemy_t* inimigo = &no_inimigo->data.inimigo;
 
     inimigo->life_points -= dano;
+
+    log_damage((entity_t) *inimigo, ENEMY, dano);
     
     if(inimigo->life_points < 1){
         if(destruir_entidade(position) == 0){
@@ -1452,7 +1385,7 @@ int mover_inimigo(int index_inimigo){
     
     case 'P':
     {
-        int resultado_combate = combate(player, inimigo.position);
+        int resultado_combate = combate(player, inimigo.position, ENEMY);
         if(resultado_combate == -1){
             fputs("ERROR - function mover_inimigo: Couldn't process combat\n", stderr);
             fflush(stderr);
@@ -1784,215 +1717,6 @@ int processar_comando_fila(queue_t *fila){
     }
 
     return 0;
-}
-
-void *logger(){
-    // Inicia o arquivo de log
-    FILE *log_file = fopen("log.txt", "w");
-
-    while(!end_logger){
-        // Tira valor do semáforo
-        sem_wait(&log_queue_sem);
-        if(end_logger) break;
-
-        // Pega o mutex da log queue
-        pthread_mutex_lock(&log_queue_mutex);
-        if(end_logger) break;
-
-        // Se a log queue estiver vazia
-        if(logQueue->length < 1){
-            // Devolve o mutex
-            pthread_mutex_unlock(&log_queue_mutex);
-
-            // E volta ao início do loop
-            continue;
-        }
-
-        // Pega o dado da frente da fila
-        nodeData_t dataEvento = dequeue(logQueue);
-
-        // Verifica se o dado está vazio
-        if(isDataEmpty(dataEvento) == 1){
-            // Devolve o mutex
-            pthread_mutex_unlock(&log_queue_mutex);
-
-            // E volta ao início do loop
-            continue;
-        }
-
-        // Se o dado não está vazio, extrai o evento
-        event_t evento = dataEvento.evento;
-
-        // Pega o horário atual e transforma em string
-        time_t now = time(NULL);
-        struct tm *local = localtime(&now);
-        char timeString[80];
-        strftime(timeString, sizeof(timeString), "%Y-%m-%d %H:%M:%S", local);
-
-        // Escreve o horário no log
-        if(fprintf(log_file, "%s ", timeString) == -1){
-            fputs("ERROR - function log_move: Couldn't write log\n", stderr);
-            fflush(stderr);
-            return NULL;
-        }
-
-        // E printa o evento
-        if(print_event(evento, log_file) == -1){
-            fputs("ERROR - thread logger: Couldn't write log\n", stderr);
-            fflush(stderr);
-            return NULL;
-        }
-
-        // Libera a memória dos ponteiros das entidades
-        free(evento.main_entity);
-        free(evento.secundary_entity);
-
-        // Devolve o mutex da log queue
-        pthread_mutex_unlock(&log_queue_mutex);
-    }
-
-    fclose(log_file);
-}
-
-// Loga um movimento num arquivo de log especificado
-// Em caso de sucesso retorna 1, em caso de falha retorna 0 
-int log_move(action_t m){
-    // Aloca um espaço na memória para guardar os dados da entidade principal (player) na fila de log
-    character_t *p = (character_t *) malloc(sizeof(character_t));
-    memcpy(p, player, sizeof(character_t));
-
-    // Cria o evento
-    event_t movimento = {
-        .type = MOVE,
-        .main_entity = p,
-        .secundary_entity = NULL
-    };
-
-    // Pega o mutex para usar a log queue
-    pthread_mutex_lock(&log_queue_mutex);
-
-    // Bota o evento na fila
-    if(enqueue(logQueue, (nodeData_t) movimento) == 0){
-        fputs("ERROR - function log_move: Couldn't enqueue log\n", stderr);
-        fflush(stderr);
-        return 0;
-    }
-
-    // Devolve o mutex de usar a log queue
-    pthread_mutex_unlock(&log_queue_mutex); 
-
-    // Posta no semáforo da log queue para sinalizar que há mais um evento na fila
-    sem_post(&log_queue_sem);
-
-    return 1;
-}
-
-// Loga um item coletado num arquivo de log especificado
-// Em caso de sucesso retorna 1, em caso de falha retorna 0 
-int log_item_collected(item_t item){
-    // Aloca um espaço na memória para guardar os dados da entidade principal (player) na fila de log
-    character_t *p = (character_t *) malloc(sizeof(character_t));
-    memcpy(p, player, sizeof(character_t));
-
-    // Aloca um espaço na memória para guardar os dados da entidade secundária (item) na fila de log
-    item_t *i = (item_t *) malloc(sizeof(item_t));
-    memcpy(i, &item, sizeof(item_t));
-
-    event_t item_coletado = {
-        .type = ITEM_COLLECTED,
-        .main_entity = p,
-        .secundary_entity = i
-    };
-
-    // Pega o mutex para usar a log queue
-    pthread_mutex_lock(&log_queue_mutex);
-
-    // Bota o evento na fila
-    if(enqueue(logQueue, (nodeData_t) item_coletado) == 0){
-        fputs("ERROR - function log_item_collected: Couldn't enqueue log\n", stderr);
-        fflush(stderr);
-        return 0;
-    }
-
-    // Devolve o mutex de usar a log queue
-    pthread_mutex_unlock(&log_queue_mutex); 
-
-    // Posta no semáforo da log queue para sinalizar que há mais um evento na fila
-    sem_post(&log_queue_sem);
-
-    return 1;
-}
-
-// Loga um combate num arquivo de log especificado
-// Em caso de sucesso retorna 1, em caso de falha retorna 0 
-int log_combat(enemy_t inimigo){
-    // Aloca um espaço na memória para guardar os dados da entidade principal (player) na fila de log
-    character_t *p = (character_t *) malloc(sizeof(character_t));
-    memcpy(p, player, sizeof(character_t));
-
-    // Aloca um espaço na memória para guardar os dados da entidade secundária (inimigo) na fila de log
-    enemy_t *i = (enemy_t *) malloc(sizeof(enemy_t));
-    memcpy(i, &inimigo, sizeof(enemy_t));
-
-    event_t combate = {
-        .type = COMBAT,
-        .main_entity = p,
-        .secundary_entity = i
-    };
-
-    // Pega o mutex para usar a log queue
-    pthread_mutex_lock(&log_queue_mutex);
-
-    // Bota o evento na fila
-    if(enqueue(logQueue, (nodeData_t) combate) == 0){
-        fputs("ERROR - function log_combat: Couldn't enqueue log\n", stderr);
-        fflush(stderr);
-        return 0;
-    }
-
-    // Devolve o mutex de usar a log queue
-    pthread_mutex_unlock(&log_queue_mutex); 
-
-    // Posta no semáforo da log queue para sinalizar que há mais um evento na fila
-    sem_post(&log_queue_sem);
-
-    return 1;
-}
-
-// Loga um combate num arquivo de log especificado
-// Em caso de sucesso retorna 1, em caso de falha retorna 0 
-int log_damage(enemy_t inimigo){
-    // Aloca um espaço na memória para guardar os dados da entidade principal (player) na fila de log
-    character_t *p = (character_t *) malloc(sizeof(character_t));
-    memcpy(p, player, sizeof(character_t));
-
-    // Aloca um espaço na memória para guardar os dados da entidade secundária (inimigo) na fila de log
-    enemy_t *i = (enemy_t *) malloc(sizeof(enemy_t));
-    memcpy(i, &inimigo, sizeof(enemy_t));
-
-    event_t dano = {
-        .type = ENEMY_DAMAGED,
-        .main_entity = p,
-        .secundary_entity = i
-    };
-
-    // Pega o mutex para usar a log queue
-    pthread_mutex_lock(&log_queue_mutex);
-
-    // Bota o evento na fila
-    if(enqueue(logQueue, (nodeData_t) dano) == 0){
-        fputs("ERROR - function log_combat: Couldn't enqueue log\n", stderr);
-        fflush(stderr);
-        return 0;
-    }
-
-    // Devolve o mutex de usar a log queue
-    pthread_mutex_unlock(&log_queue_mutex); 
-
-    // Posta no semáforo da log queue para sinalizar que há mais um evento na fila
-    sem_post(&log_queue_sem);
-
-    return 1;
 }
 
 // Libera toda memória dinamicamente alocada pelo programa
