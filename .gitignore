@@ -1,0 +1,15 @@
+# objetos do compilador
+*.o
+
+# executáveis
+*.exe
+
+# arquivos temporários
+*.log
+*.tmp
+
+# diretórios
+bin/
+build/
+debug/
+log/

@@ -1,33 +1,42 @@
-# Compilador e flags
+﻿# Compilador e flags
 CC = gcc
-CFLAGS = -pthread
+CFLAGS = -Iinclude -pthread
+LDFLAGS = -pthread
+
+# Diretórios do projeto
+SRC_DIR = src
+INC_DIR = include
+OBJ_DIR = build
+BIN_DIR = bin
+LOG_DIR = log
 
 # Nome do executável final
-TARGET = jogo_RPG.exe
+TARGET = $(BIN_DIR)/jogo_RPG.exe
 
-# Nome dos objetos gerados
-OBJS = main.o renderer.o logger.o data_structures.o
+# Arquivos fonte e objetos
+SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/renderer.c $(SRC_DIR)/logger.c $(SRC_DIR)/data_structures.c
+OBJS = $(OBJ_DIR)/main.o $(OBJ_DIR)/renderer.o $(OBJ_DIR)/logger.o $(OBJ_DIR)/data_structures.o
+
+# Arquivos de cabeçalho
+DEPS = $(INC_DIR)/renderer.h $(INC_DIR)/logger.h $(INC_DIR)/data_structures.h
+
+.PHONY: all clean directories
 
 # Regra padrão (executada com só: make)
-all: $(TARGET)
+all: directories $(TARGET)
+
+# Cria diretórios de build se necessário
+directories:
+# mkdir -p $(OBJ_DIR) $(BIN_DIR)
 
 # Linka os .o e gera o executável
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 # Compila cada .c em .o
-main.o: main.c renderer.h logger.h data_structures.h
-	$(CC) $(CFLAGS) -c main.c
-
-renderer.o: renderer.c renderer.h data_structures.h
-	$(CC) $(CFLAGS) -c renderer.c
-
-logger.o: logger.c logger.h data_structures.h
-	$(CC) $(CFLAGS) -c logger.c
-
-data_structures.o: data_structures.c data_structures.h
-	$(CC) $(CFLAGS) -c data_structures.c
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(DEPS)
+	$(CC) $(CFLAGS) -c $< -o $@
 
 # Remove arquivos gerados
 clean:
-	powershell -Command "Remove-Item -Force *.o, $(TARGET)"
+	powershell -Command "Remove-Item -Force $(OBJ_DIR)/*.o, $(BIN_DIR)/*.exe, $(LOG_DIR)/*.log"

@@ -2,7 +2,7 @@
 
 void *logger(void* argv){
     // Inicia o arquivo de log
-    FILE *log_file = fopen("log.txt", "w");
+    FILE *log_file = fopen("log/RPG.log", "w");
 
     while(!end_logger){
         // Tira valor do semáforo
