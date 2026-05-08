@@ -69,6 +69,8 @@ sem_t render_sem;
 // Função principal de loop
 int loop();
 
+char ler_input();
+
 // Função de inicialização
 char** inicializar_tabuleiro(int N);
 int gerar_inimigos(int quantidade);
@@ -271,12 +273,10 @@ int loop(){
     }
     
     #ifndef DEBUG
-    printf("Acao ('WASD' para movimento, 'E' para habilidade, 'Q' para sair do programa): \n");
+    printf("Acao ('WASD' para movimento, 'C' para feitico de cura, 'R' para relampago, 'B' para bola de fogo, 'Q' para sair do programa): \n");
     fflush(stdout);
 
-    while(!_kbhit());
-    input = _getch();
-    input = toupper(input);
+    input = ler_input();
     #endif
 
     #ifdef DEBUG
@@ -334,8 +334,26 @@ int loop(){
             
             return 1;
         }
+    break;
+
+    case 'C':
+        usar_habilidade(player, HEALING_SPELL, 'W');
+        break;
     
-    case 'E':
+    case 'R':
+        printf("Direcao: 'WASD'\n");
+
+        input = ler_input();
+
+        usar_habilidade(player, LIGHTNING, input);
+        break;
+    
+    case 'B':
+        printf("Direcao: 'WASD'\n");
+
+        input = ler_input();
+
+        usar_habilidade(player, FIREBALL, input);
         break;
     
     default:
@@ -344,55 +362,6 @@ int loop(){
         break;
     }
 
-    // Essa parte do loop só será executada caso seja selecionado ataque
-    #ifndef DEBUG
-
-    printf("Habilidade ('C' para feitico de cura, 'R' para relampago, 'B' para bola de fogo): \n");
-    fflush(stdout);
-
-    while(!_kbhit());
-    input = _getch();
-    input = toupper(input);
-
-    #endif
-
-    #ifdef DEBUG
-
-    Sleep(500);
-    input = 'S';
-
-    #endif
-
-    char skill = input;
-
-    switch (skill)
-    {
-    case 'C':
-        usar_habilidade(player, HEALING_SPELL, 'W');
-        break;
-    
-    case 'R':
-        printf("Direcao: 'WASD'\n");
-        while(!_kbhit());
-        input = _getch();
-        input = toupper(input);
-        usar_habilidade(player, LIGHTNING, input);
-        break;
-    
-    case 'B':
-        printf("Direcao: 'WASD'\n");
-        while(!_kbhit());
-        input = _getch();
-        input = toupper(input);
-        usar_habilidade(player, FIREBALL, input);
-        break;
-    
-    default:
-        break;
-    }
-
-    //atualizarTabuleiro = 1;
-
     if(mover_inimigos() == -1){
         fputs("ERROR - function loop: Couldn't move enemies\n", stderr);
         fflush(stderr);
@@ -400,6 +369,16 @@ int loop(){
     }
 
     return 1;
+}
+
+char ler_input(){
+    char input;
+
+    while(!_kbhit());
+    input = _getch();
+    input = toupper(input);
+
+    return input;
 }
 
 char** inicializar_tabuleiro(int N){
