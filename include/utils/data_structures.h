@@ -9,6 +9,17 @@
 
 #include "utils/status.h"
 
+#define LOG
+#ifdef LOG
+
+#define LOG_LENGTH 512
+
+typedef struct {
+    char text[LOG_LENGTH];
+} log_t;
+
+#endif
+
 #define JOGO
 
 #ifdef JOGO
@@ -120,7 +131,7 @@ typedef enum {
     ITEM_TYPE,
     MOVE_TYPE,
     OBSTACLE_TYPE,
-    EVENT_TYPE,
+    LOG_TYPE,
     #endif
     LIST_TYPE
 } list_type_t;
@@ -134,7 +145,10 @@ typedef union node_data_t{
     item_t item;
     action_t movimento;
     obstacle_t obstaculo;
-    event_t evento;
+    #endif
+
+    #ifdef LOG
+    log_t log;
     #endif
 
     #ifdef LINKEDLIST
@@ -148,13 +162,13 @@ typedef union node_data_t{
 
 // Funções de comparação
 
-int compare_position(position_t p1, position_t p2);
-int compare_character(node_data_t d1, node_data_t d2);
-int compare_enemy(node_data_t d1, node_data_t d2);
-int compare_item(node_data_t d1, node_data_t d2);
-int compare_move(node_data_t d1, node_data_t d2);
-int compare_obstacle(node_data_t d1, node_data_t d2);
-int compare_event(node_data_t d1, node_data_t d2);
+bool compare_position(position_t p1, position_t p2);
+bool compare_character(node_data_t d1, node_data_t d2);
+bool compare_enemy(node_data_t d1, node_data_t d2);
+bool compare_item(node_data_t d1, node_data_t d2);
+bool compare_move(node_data_t d1, node_data_t d2);
+bool compare_obstacle(node_data_t d1, node_data_t d2);
+bool compare_log(node_data_t d1, node_data_t d2);
 
 // Funções de impressão
 
@@ -164,7 +178,7 @@ status_t print_enemy(enemy_t i, FILE* file);
 status_t print_item(item_t i, FILE* file);
 status_t print_move(action_t m, FILE* file);
 status_t print_obstacle(obstacle_t o, FILE* file);
-status_t print_event(event_t e, FILE* file);
+status_t print_log(log_t log, FILE* file);
 
 #endif
 
@@ -186,12 +200,12 @@ typedef struct linked_list_t {
 } linked_list_t;
 
 // Datatype de funções de comparação entre nós
-typedef int (*comparison)(union node_data_t, union node_data_t);
+typedef bool (*comparison)(union node_data_t, union node_data_t);
 
 // Linked List - Declaração de Métodos
 
 bool is_data_empty(node_data_t d);
-int compare_list(node_data_t d1, node_data_t d2);
+bool compare_list(node_data_t d1, node_data_t d2);
 status_t print_list(linked_list_t* list, FILE* file);
 linked_list_t* create_linked_list(list_type_t listType);
 status_t insert_linked_list(linked_list_t* list, node_data_t data, int index);

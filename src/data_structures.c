@@ -7,21 +7,21 @@
 // ---- Métodos Básicos ----
 
 // ---------------- Comparar posições ---------------- 
-// Retorna 1 em caso dos personagens serem iguais, retorna 0 caso contrário
-int compare_position(position_t p1, position_t p2){
+// Retorna true em caso dos personagens serem iguais, retorna false caso contrário
+bool compare_position(position_t p1, position_t p2){
     if(
         memcmp(&p1, &p2, sizeof(position_t)) == 0
     ){
-        return 1;
+        return true;
     }
     else{
-        return 0;
+        return false;
     }
 }
 
 // ---------------- Comparar personagens ---------------- 
-// Retorna 1 em caso dos personagens serem iguais, retorna 0 caso contrário
-int compare_character(node_data_t d1, node_data_t d2){
+// Retorna true em caso dos personagens serem iguais, retorna false caso contrário
+bool compare_character(node_data_t d1, node_data_t d2){
     character_t p1 = d1.personagem;
     character_t p2 = d2.personagem;
     if(
@@ -29,93 +29,92 @@ int compare_character(node_data_t d1, node_data_t d2){
         p1.life_points == p2.life_points &&
         compare_position(p1.position, p2.position) == 1
     ){
-        return 1;
+        return true;
     }
     else{
-        return 0;
+        return false;
     }
 }
 
 // ---------------- Comparar inimigos ---------------- 
-// Retorna 1 em caso dos inimigos serem iguais, retorna 0 caso contrário
-int compare_enemy(node_data_t d1, node_data_t d2){
+// Retorna true em caso dos inimigos serem iguais, retorna false caso contrário
+bool compare_enemy(node_data_t d1, node_data_t d2){
     enemy_t i1 = d1.inimigo;
     enemy_t i2 = d2.inimigo;
     if(
         i1.life_points == i2.life_points &&
         compare_position(i1.position, i2.position) == 1
     ){
-        return 1;
+        return true;
     }
     else{
-        return 0;
+        return false;
     }
 }
 
 // ---------------- Comparar itens ---------------- 
-// Retorna 1 em caso dos itens serem iguais, retorna 0 caso contrário
-int compare_item(node_data_t d1, node_data_t d2){
+// Retorna true em caso dos itens serem iguais, retorna false caso contrário
+bool compare_item(node_data_t d1, node_data_t d2){
     item_t i1 = d1.item;
     item_t i2 = d2.item;
     if(
         i1.valor == i2.valor &&
         compare_position(i1.position, i2.position) == 1
     ){
-        return 1;
+        return true;
     }
     else{
-        return 0;
+        return false;
     }
 }
 
 // ---------------- Comparar movimento ---------------- 
-// Retorna 1 em caso dos movimentos serem iguais, retorna 0 caso contrário
-int compare_move(node_data_t d1, node_data_t d2){
+// Retorna true em caso dos movimentos serem iguais, retorna false caso contrário
+bool compare_move(node_data_t d1, node_data_t d2){
     action_t m1 = d1.movimento;
     action_t m2 = d2.movimento;
     if(
         m1.acao == m2.acao &&
         m1.direcao == m2.direcao
     ){
-        return 1;
+        return true;
     }
     else{
-        return 0;
+        return false;
     }
 }
 
 // ---------------- Comparar obstaculos ---------------- 
-// Retorna 1 em caso dos obstaculos serem iguais, retorna 0 caso contrário
-int compare_obstacle(node_data_t d1, node_data_t d2){
+// Retorna true em caso dos obstaculos serem iguais, retorna false caso contrário
+bool compare_obstacle(node_data_t d1, node_data_t d2){
     obstacle_t o1 = d1.obstaculo;
     obstacle_t o2 = d2.obstaculo;
     if(
         compare_position(o1.position, o2.position) == 1
     ){
-        return 1;
+        return true;
     }
     else{
-        return 0;
+        return false;
     }
 }
 
 // ---------------- Comparar eventos ---------------- 
-// Retorna 1 em caso dos eventos serem iguais, retorna 0 caso contrário
-int compare_event(node_data_t d1, node_data_t d2){
-    event_t o1 = d1.evento;
-    event_t o2 = d2.evento;
+// Retorna true em caso dos eventos serem iguais, retorna false caso contrário
+bool compare_log(node_data_t d1, node_data_t d2){
+    log_t o1 = d1.log;
+    log_t o2 = d2.log;
     if(
-        memcmp(&o1, &o2, sizeof(event_t)) == 0
+        strncmp(o1.text, o2.text, LOG_LENGTH) == 0
     ){
-        return 1;
+        return true;
     }
     else{
-        return 0;
+        return false;
     }
 }
 
 // ---------------- Imprimir posição ---------------- 
-// Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
 // Obs.: Dá fflush no file passado como argumento no fim da execução
 status_t print_position(position_t p, FILE* file){
     if(fprintf(file ,"posicao: [%d, %d]\n", p.x, p.y) == -1) return ERR_INTERNAL;
@@ -126,7 +125,6 @@ status_t print_position(position_t p, FILE* file){
 }
 
 // ---------------- Imprimir personagem ---------------- 
-// Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
 status_t print_character(character_t p, FILE* file){
     if(fprintf(file ,"vida: %d\nmana: %d\n", p.life_points, p.mana_points) == -1) return ERR_INTERNAL;
 
@@ -134,7 +132,6 @@ status_t print_character(character_t p, FILE* file){
 }
 
 // ---------------- Imprimir inimigo ---------------- 
-// Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
 status_t print_enemy(enemy_t i, FILE* file){
     if(fprintf(file ,"vida: %d\n", i.life_points) == -1) return ERR_INTERNAL;
 
@@ -142,7 +139,6 @@ status_t print_enemy(enemy_t i, FILE* file){
 }
 
 // ---------------- Imprimir item ---------------- 
-// Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
 status_t print_item(item_t i, FILE* file){
     if(fprintf(file ,"valor: %d\n", i.valor) == -1) return ERR_INTERNAL;
 
@@ -150,7 +146,6 @@ status_t print_item(item_t i, FILE* file){
 }
 
 // ---------------- Imprimir movimento ---------------- 
-// Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
 status_t print_move(action_t m, FILE* file){
     if(fprintf(file ,"acao: %c\ndirecao: %c\n", m.acao, m.direcao) == -1) return ERR_INTERNAL;
 
@@ -160,210 +155,13 @@ status_t print_move(action_t m, FILE* file){
 }
 
 // ---------------- Imprimir obstaculo ---------------- 
-// Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
 status_t print_obstacle(obstacle_t o, FILE* file){
     return print_position(o.position, file);
 }
 
 // ---------------- Imprimir evento ---------------- 
-// Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
-status_t print_event(event_t event, FILE* file){
-    switch (event.event_type)
-    {
-    case MOVE:
-    {
-        // Caso o main entity seja um character
-        if(event.main_entity_type == CHARACTER){
-            character_t player = event.main_entity.character;
-
-            if(fprintf(file ,"player moveu para a ") == -1) return ERR_INTERNAL;
-
-            if(IS_ERROR_STATUS(print_position(player.position, file))) return ERR_INTERNAL;
-        }
-
-        // Caso o main entity seja um enemy
-        else if(event.main_entity_type == ENEMY){
-            enemy_t enemy = event.main_entity.enemy;
-
-            if(fprintf(file ,"Inimigo moveu para a ") == -1) return ERR_INTERNAL;
-
-            if(IS_ERROR_STATUS(print_position(enemy.position, file))) return ERR_INTERNAL;
-        }
-
-        if(fprintf(file ,"\n") == -1) return ERR_INTERNAL;
-
-        break;
-    }
-    case COMBAT:
-    {
-        // Caso o main entity seja um character e o secundary seja um enemy
-        if(event.main_entity_type == CHARACTER && event.secundary_entity_type == ENEMY){
-            character_t player = event.main_entity.character;
-            enemy_t enemy = event.secundary_entity.enemy;
-
-            if(fprintf(file ,"Player combateu o inimigo na ") == -1) return ERR_INTERNAL;
-
-            if(IS_ERROR_STATUS(print_position(enemy.position, file))) return ERR_INTERNAL;
-
-            if(fprintf(file ,"Vida atual do Player: %d      Vida atual do inimigo: %d\n\n", player.life_points, enemy.life_points) == -1) return ERR_INTERNAL;
-        }
-
-        // Caso o main entity seja um enemy e o secundary seja um character
-        else if(event.main_entity_type == ENEMY && event.secundary_entity_type == CHARACTER){
-            character_t player = event.secundary_entity.character;
-            enemy_t enemy = event.main_entity.enemy;
-
-            if(fprintf(file ,"O inimigo combateu o player na ") == -1) return ERR_INTERNAL;
-
-            if(IS_ERROR_STATUS(print_position(player.position, file))) return ERR_INTERNAL;
-
-            if(fprintf(file ,"Vida atual do Player: %d      Vida atual do inimigo: %d\n\n", player.life_points, enemy.life_points) == -1) return ERR_INTERNAL;
-        }
-
-        // Caso não seja desses tipos, dá erro
-        else{
-            fputs("ERROR - function print_event: Invalid entity types\n", stderr);
-            fflush(stderr);
-            return ERR_INVALID_IN;
-        }
-        
-        break;
-    }
-    case ITEM_COLLECTED:
-    {
-        // Caso o main entity seja um character e o secundary seja um enemy
-        if(event.main_entity_type == CHARACTER && event.secundary_entity_type == ITEM){
-            character_t player = event.main_entity.character;
-            item_t item = event.secundary_entity.item;
-
-            if(fprintf(file ,"Player coletou o item na ") == -1) return ERR_INTERNAL;
-
-            if(IS_ERROR_STATUS(print_position(item.position, file))) return ERR_INTERNAL;
-
-            if(fprintf(file ,"Mana atual do Player: %d      Valor do item: %d\n\n", player.mana_points, item.valor) == -1) return ERR_INTERNAL;
-        }
-
-        // Caso não seja desses tipos, dá erro
-        else{
-            fputs("ERROR - function print_event: Invalid entity types\n", stderr);
-            fflush(stderr);
-            return ERR_INVALID_IN;
-        }
-
-        break;
-    }
-    case SKILL:
-    {
-        // Caso o main entity seja um character
-        if(event.main_entity_type == CHARACTER){
-            character_t player = event.main_entity.character;
-            skill_t skill = event.auxiliar_data.skill;
-
-            if(fprintf(file ,"Player usou a skill ") == -1) return ERR_INTERNAL;
-
-            switch (skill)
-            {
-            case HEALING_SPELL:
-                if(fprintf(file ,"Feitiço de cura\n") == -1) return ERR_INTERNAL;
-                break;
-            
-            case FIREBALL:
-                if(fprintf(file ,"Feitiço de bola de fogo\n") == -1) return ERR_INTERNAL;
-                break;
-            
-            case LIGHTNING:
-                if(fprintf(file ,"Feitiço de relampago\n") == -1) return ERR_INTERNAL;
-                break;
-            
-            default:
-                break;
-            }
-
-            if(fprintf(file ,"Mana atual do Player: %d\n\n", player.mana_points) == -1) return ERR_INTERNAL;
-        }
-
-        // Caso não seja desses tipos, dá erro
-        else{
-            fputs("ERROR - function print_event: Invalid entity type\n", stderr);
-            fflush(stderr);
-            return ERR_INVALID_IN;
-        }
-
-        break;
-    }
-    case DAMAGE:
-    {
-        // Caso o main entity seja um character
-        if(event.main_entity_type == CHARACTER){
-            character_t player = event.main_entity.character;
-            int32_t damage = event.auxiliar_data.life_points;
-
-            if(fprintf(file ,"Player levou %d de dano\n", damage) == -1) return ERR_INTERNAL;
-
-            if(fprintf(file ,"Vida atual do Player: %d\n\n", player.life_points) == -1) return ERR_INTERNAL;
-        }
-
-        // Caso o main entity seja um enemy
-        else if(event.main_entity_type == ENEMY){
-            enemy_t enemy = event.main_entity.enemy;
-            int32_t damage = event.auxiliar_data.life_points;
-
-            if(fprintf(file ,"Inimigo levou %d de dano\n", damage) == -1) return ERR_INTERNAL;
-
-            if(fprintf(file ,"Vida atual do inimigo: %d\t", enemy.life_points) == -1) return ERR_INTERNAL;
-
-            if(IS_ERROR_STATUS(print_position(enemy.position, file))) return ERR_INTERNAL;
-            if(fprintf(file, "\n") == -1) return ERR_INTERNAL;
-        }
-
-        // Caso não seja desses tipos, dá erro
-        else{
-            fputs("ERROR - function print_event: Invalid entity types\n", stderr);
-            fflush(stderr);
-            return ERR_INVALID_IN;
-        }
-
-        break;
-    }
-    case VICTORY:
-    {
-        // Caso o main entity seja um character
-        if(event.main_entity_type == CHARACTER){
-            character_t player = event.main_entity.character;
-
-            if(fprintf(file ,"Player venceu\nVida do personagem: %d      Mana do personagem: %d\n\n", player.life_points, player.mana_points) == -1) return ERR_INTERNAL;
-        }
-
-        // Caso não seja desses tipos, dá erro
-        else{
-            fputs("ERROR - function print_event: Invalid entity types\n", stderr);
-            fflush(stderr);
-            return ERR_INVALID_IN;
-        }
-        
-        break;
-    }
-    case DEFEAT:
-    {
-        // Caso o main entity seja um character
-        if(event.main_entity_type == CHARACTER){
-            character_t player = event.main_entity.character;
-
-            if(fprintf(file ,"Player perdeu\nVida do personagem: %d      Mana do personagem: %d\n\n", player.life_points, player.mana_points) == -1) return ERR_INTERNAL;
-        }
-
-        // Caso não seja desses tipos, dá erro
-        else{
-            fputs("ERROR - function print_event: Invalid entity types\n", stderr);
-            fflush(stderr);
-            return ERR_INVALID_IN;
-        }
-
-        break;
-    }
-    default:
-        break;
-    }
+status_t print_log(log_t log, FILE* file){
+    if((fprintf(file, "%s", (char *) log.text)) == -1) return ERR_INTERNAL;
 
     fflush(file);
 
@@ -379,14 +177,14 @@ status_t print_event(event_t event, FILE* file){
 // ---- Métodos Básicos ----
 
 // ---------------- Comparar listas ---------------- 
-// Retorna 1 em caso do dado estar vazio, retorna 0 caso contrário
+// Retorna true em caso do dado estar vazio, retorna false caso contrário
 bool is_data_empty(node_data_t d){
     return (d.lista == NULL);
 }
 
 // ---------------- Comparar listas ---------------- 
-// Retorna 1 em caso das listas forem as mesmas, retorna 0 caso contrário
-int compare_list(node_data_t d1, node_data_t d2){
+// Retorna true em caso das listas forem as mesmas, retorna false caso contrário
+bool compare_list(node_data_t d1, node_data_t d2){
     linked_list_t* l1 = d1.lista;
     linked_list_t* l2 = d2.lista;
     return (l1 == l2);

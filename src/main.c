@@ -123,7 +123,7 @@ int main(){
     itemList = create_linked_list(ITEM_TYPE);
     obstacleList = create_linked_list(OBSTACLE_TYPE);
     moveQueue = create_queue(MOVE_TYPE);
-    logQueue = create_queue(EVENT_TYPE);
+    logQueue = create_queue(LOG_TYPE);
 
     // Inicializa o logger
     pthread_create(&logger_thr, NULL, &logger, NULL);
