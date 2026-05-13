@@ -4,7 +4,8 @@
 #ifndef JOGO
 #define JOGO
 #endif
-#include "data_structures.h"
+#include "utils\data_structures.h"
+#include "utils\status.h"
 
 #include <signal.h>
 #include <stdio.h>

@@ -2,9 +2,12 @@
 #define DATA_STRUCTURE_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "utils/status.h"
 
 #define JOGO
 
@@ -108,7 +111,7 @@ typedef struct {
 
 #ifdef LINKEDLIST
 
-struct linkedList_t;
+struct linked_list_t;
 
 typedef enum {
     #ifdef JOGO
@@ -124,7 +127,7 @@ typedef enum {
 
 #endif
 
-typedef union nodeData_t{
+typedef union node_data_t{
     #ifdef JOGO
     character_t personagem;
     enemy_t inimigo;
@@ -135,9 +138,9 @@ typedef union nodeData_t{
     #endif
 
     #ifdef LINKEDLIST
-    struct linkedList_t* lista;
+    struct linked_list_t* lista;
     #endif
-} nodeData_t;
+} node_data_t;
 
 // Jogo - Declaração de Métodos 
 
@@ -146,22 +149,22 @@ typedef union nodeData_t{
 // Funções de comparação
 
 int compare_position(position_t p1, position_t p2);
-int compare_character(nodeData_t d1, nodeData_t d2);
-int compare_enemy(nodeData_t d1, nodeData_t d2);
-int compare_item(nodeData_t d1, nodeData_t d2);
-int compare_move(nodeData_t d1, nodeData_t d2);
-int compare_obstacle(nodeData_t d1, nodeData_t d2);
-int compare_event(nodeData_t d1, nodeData_t d2);
+int compare_character(node_data_t d1, node_data_t d2);
+int compare_enemy(node_data_t d1, node_data_t d2);
+int compare_item(node_data_t d1, node_data_t d2);
+int compare_move(node_data_t d1, node_data_t d2);
+int compare_obstacle(node_data_t d1, node_data_t d2);
+int compare_event(node_data_t d1, node_data_t d2);
 
 // Funções de impressão
 
-int print_position(position_t p, FILE* file);
-int print_character(character_t p, FILE* file);
-int print_enemy(enemy_t i, FILE* file);
-int print_item(item_t i, FILE* file);
-int print_move(action_t m, FILE* file);
-int print_obstacle(obstacle_t o, FILE* file);
-int print_event(event_t e, FILE* file);
+status_t print_position(position_t p, FILE* file);
+status_t print_character(character_t p, FILE* file);
+status_t print_enemy(enemy_t i, FILE* file);
+status_t print_item(item_t i, FILE* file);
+status_t print_move(action_t m, FILE* file);
+status_t print_obstacle(obstacle_t o, FILE* file);
+status_t print_event(event_t e, FILE* file);
 
 #endif
 
@@ -171,32 +174,32 @@ int print_event(event_t e, FILE* file);
 
 // Linked List - Definição de Datatypes
 
-typedef struct linkedNode_t {
-    nodeData_t data;
-    struct linkedNode_t * next;
-} linkedNode_t;
+typedef struct linked_node_t {
+    node_data_t data;
+    struct linked_node_t * next;
+} linked_node_t;
 
-typedef struct linkedList_t {
+typedef struct linked_list_t {
     list_type_t listType; // CHARACTER_TYPE - ENEMY_TYPE - ITEM_TYPE - MOVE_TYPE - LIST_TYPE
-    linkedNode_t * head, * tail;
-    int length;
-} linkedList_t;
+    linked_node_t * head, * tail;
+    uint32_t length;
+} linked_list_t;
 
 // Datatype de funções de comparação entre nós
-typedef int (*comparison)(union nodeData_t, union nodeData_t);
+typedef int (*comparison)(union node_data_t, union node_data_t);
 
 // Linked List - Declaração de Métodos
 
-int isDataEmpty(nodeData_t d);
-int compare_list(nodeData_t d1, nodeData_t d2);
-void print_list(linkedList_t* list, FILE* file);
-linkedList_t* create_linked_list(int listType);
-int insert_linked_list(linkedList_t* list, nodeData_t data, int index);
-int remove_linked_list(linkedList_t* list, int index);
-linkedNode_t* search_linked_list(linkedList_t* list, int index);
-int delete_linked_list(linkedList_t* list);
-int search_data_linked_list(linkedList_t* list, nodeData_t data);
-int search_position_linked_list(linkedList_t* list, position_t position_searched);
+bool is_data_empty(node_data_t d);
+int compare_list(node_data_t d1, node_data_t d2);
+status_t print_list(linked_list_t* list, FILE* file);
+linked_list_t* create_linked_list(list_type_t listType);
+status_t insert_linked_list(linked_list_t* list, node_data_t data, int index);
+status_t remove_linked_list(linked_list_t* list, int index);
+linked_node_t* search_linked_list(linked_list_t* list, int index);
+status_t delete_linked_list(linked_list_t* list);
+int search_data_linked_list(linked_list_t* list, node_data_t data);
+int search_position_linked_list(linked_list_t* list, position_t position_searched);
 
 #endif
 
@@ -206,15 +209,15 @@ int search_position_linked_list(linkedList_t* list, position_t position_searched
 
 // Double Linked List - Datatypes
 
-typedef struct doubleLinkedNode {
-    nodeData_t data;
-    struct doubleLinkedNode * next, * previous;
-} doubleLinkedNode_t;
+typedef struct double_linked_node_t {
+    node_data_t data;
+    struct double_linked_node_t * next, * previous;
+} double_linked_node_t;
 
 typedef struct doubleLinkedList {
-    int listType; // CHARACTER_TYPE - ENEMY_TYPE - ITEM_TYPE - MOVE_TYPE - LIST_TYPE
-    linkedNode_t * head, * tail;
-    int length;
+    list_type_t listType; // CHARACTER_TYPE - ENEMY_TYPE - ITEM_TYPE - MOVE_TYPE - LIST_TYPE
+    linked_node_t * head, * tail;
+    uint32_t length;
 } doubleLinkedList_t;
 
 
@@ -227,16 +230,16 @@ typedef struct doubleLinkedList {
 
 // Queue - Datatypes
 
-typedef linkedList_t queue_t;
+typedef linked_list_t queue_t;
 
 // Queue - Declaração de Métodos
 
 queue_t* create_queue(int listType);
-nodeData_t front(queue_t* queue);
-int enqueue(queue_t* queue, nodeData_t data);
-nodeData_t dequeue(queue_t* queue);
-void print_queue(queue_t* queue, FILE* file);
-int delete_queue(queue_t* queue);
+node_data_t front(queue_t* queue);
+status_t enqueue(queue_t* queue, node_data_t data);
+node_data_t dequeue(queue_t* queue);
+status_t print_queue(queue_t* queue, FILE* file);
+status_t delete_queue(queue_t* queue);
 
 #endif
 
@@ -246,17 +249,17 @@ int delete_queue(queue_t* queue);
 
 // Stack - Datatypes
 
-typedef linkedList_t stack_t;
+typedef linked_list_t stack_t;
 
 // Stack - Métodos
 
 // ---- Declarações ----
 stack_t* create_stack(int listType);
-nodeData_t top(stack_t* stack);
-int push(stack_t* stack, nodeData_t data);
-nodeData_t pop(stack_t* stack);
-void print_stack(stack_t* stack);
-int delete_stack(stack_t* stack);
+node_data_t top(stack_t* stack);
+status_t push(stack_t* stack, node_data_t data);
+node_data_t pop(stack_t* stack);
+status_t print_stack(stack_t* stack);
+status_t delete_stack(stack_t* stack);
 
 #endif
 

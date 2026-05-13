@@ -4,7 +4,8 @@
 #ifndef JOGO
 #define JOGO
 #endif
-#include "data_structures.h"
+#include "utils\data_structures.h"
+#include "utils\status.h"
 
 #include <pthread.h>
 #include <semaphore.h>
@@ -29,9 +30,9 @@ extern sem_t log_queue_sem;
 
 // Funções de log
 void *logger(void* argv);
-int log_move(action_t m);
-int log_item_collected(item_t i);
-int log_combat(entity_t main_entity, entity_t secundary_entity, entity_type_t main_entity_type);
-int log_damage(entity_t main_entity, entity_type_t main_entity_type, int32_t damage);
+status_t log_move(action_t m);
+status_t log_item_collected(item_t i);
+status_t log_combat(entity_t main_entity, entity_t secundary_entity, entity_type_t main_entity_type);
+status_t log_damage(entity_t main_entity, entity_type_t main_entity_type, int32_t damage);
 
 #endif

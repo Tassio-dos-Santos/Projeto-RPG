@@ -23,13 +23,13 @@ void *logger(void* argv){
         if(end_logger) break;
 
         // Pega o dado da frente da fila
-        nodeData_t dataEvento = dequeue(logQueue);
+        node_data_t dataEvento = dequeue(logQueue);
 
         // Devolve o mutex da log queue
         pthread_mutex_unlock(&log_queue_mutex);
 
         // Verifica se o dado está vazio
-        if(isDataEmpty(dataEvento) == 1) continue;
+        if(is_data_empty(dataEvento) == 1) continue;
 
         // Se o dado não está vazio, extrai o evento
         event_t evento = dataEvento.evento;
@@ -48,7 +48,7 @@ void *logger(void* argv){
         }
 
         // E printa o evento
-        if(print_event(evento, log_file) == -1){
+        if(IS_ERROR_STATUS(print_event(evento, log_file))){
             fputs("ERROR - thread logger: Couldn't write log\n", stderr);
             fflush(stderr);
             return NULL;
@@ -59,8 +59,7 @@ void *logger(void* argv){
 }
 
 // Loga um movimento num arquivo de log especificado
-// Em caso de sucesso retorna 1, em caso de falha retorna 0 
-int log_move(action_t m){
+status_t log_move(action_t m){
     // Cria o evento
     event_t movimento = {
         .event_type = MOVE,
@@ -72,10 +71,10 @@ int log_move(action_t m){
     pthread_mutex_lock(&log_queue_mutex);
 
     // Bota o evento na fila
-    if(enqueue(logQueue, (nodeData_t) movimento) == 0){
+    if(IS_ERROR_STATUS(enqueue(logQueue, (node_data_t) movimento))){
         fputs("ERROR - function log_move: Couldn't enqueue log\n", stderr);
         fflush(stderr);
-        return 0;
+        return ERR_DATA;
     }
 
     // Devolve o mutex de usar a log queue
@@ -88,8 +87,7 @@ int log_move(action_t m){
 }
 
 // Loga um item coletado num arquivo de log especificado
-// Em caso de sucesso retorna 1, em caso de falha retorna 0 
-int log_item_collected(item_t item){
+status_t log_item_collected(item_t item){
     event_t item_coletado = {
         .event_type = ITEM_COLLECTED,
         .main_entity = (entity_t) *player,
@@ -102,10 +100,10 @@ int log_item_collected(item_t item){
     pthread_mutex_lock(&log_queue_mutex);
 
     // Bota o evento na fila
-    if(enqueue(logQueue, (nodeData_t) item_coletado) == 0){
+    if(IS_ERROR_STATUS(enqueue(logQueue, (node_data_t) item_coletado))){
         fputs("ERROR - function log_item_collected: Couldn't enqueue log\n", stderr);
         fflush(stderr);
-        return 0;
+        return ERR_DATA;
     }
 
     // Devolve o mutex de usar a log queue
@@ -114,12 +112,11 @@ int log_item_collected(item_t item){
     // Posta no semáforo da log queue para sinalizar que há mais um evento na fila
     sem_post(&log_queue_sem);
 
-    return 1;
+    return SUCCESS;
 }
 
 // Loga um combate num arquivo de log especificado
-// Em caso de sucesso retorna 1, em caso de falha retorna 0 
-int log_combat(entity_t main_entity, entity_t secundary_entity, entity_type_t main_entity_type){
+status_t log_combat(entity_t main_entity, entity_t secundary_entity, entity_type_t main_entity_type){
     event_t combate = {
         .event_type = COMBAT,
         .main_entity = main_entity,
@@ -135,10 +132,10 @@ int log_combat(entity_t main_entity, entity_t secundary_entity, entity_type_t ma
     pthread_mutex_lock(&log_queue_mutex);
 
     // Bota o evento na fila
-    if(enqueue(logQueue, (nodeData_t) combate) == 0){
+    if(IS_ERROR_STATUS(enqueue(logQueue, (node_data_t) combate))){
         fputs("ERROR - function log_combat: Couldn't enqueue log\n", stderr);
         fflush(stderr);
-        return 0;
+        return ERR_DATA;
     }
 
     // Devolve o mutex de usar a log queue
@@ -147,12 +144,11 @@ int log_combat(entity_t main_entity, entity_t secundary_entity, entity_type_t ma
     // Posta no semáforo da log queue para sinalizar que há mais um evento na fila
     sem_post(&log_queue_sem);
 
-    return 1;
+    return SUCCESS;
 }
 
 // Loga um combate num arquivo de log especificado
-// Em caso de sucesso retorna 1, em caso de falha retorna 0 
-int log_damage(entity_t main_entity, entity_type_t main_entity_type, int32_t damage){
+status_t log_damage(entity_t main_entity, entity_type_t main_entity_type, int32_t damage){
     event_t dano = {
         .event_type = COMBAT,
         .main_entity = main_entity,
@@ -164,10 +160,10 @@ int log_damage(entity_t main_entity, entity_type_t main_entity_type, int32_t dam
     pthread_mutex_lock(&log_queue_mutex);
 
     // Bota o evento na fila
-    if(enqueue(logQueue, (nodeData_t) dano) == 0){
+    if(IS_ERROR_STATUS(enqueue(logQueue, (node_data_t) dano))){
         fputs("ERROR - function log_combat: Couldn't enqueue log\n", stderr);
         fflush(stderr);
-        return 0;
+        return ERR_DATA;
     }
 
     // Devolve o mutex de usar a log queue
@@ -176,5 +172,5 @@ int log_damage(entity_t main_entity, entity_type_t main_entity_type, int32_t dam
     // Posta no semáforo da log queue para sinalizar que há mais um evento na fila
     sem_post(&log_queue_sem);
 
-    return 1;
+    return SUCCESS;
 }

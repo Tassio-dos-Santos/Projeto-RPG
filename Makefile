@@ -18,7 +18,7 @@ SRCS = $(SRC_DIR)/main.c $(SRC_DIR)/renderer.c $(SRC_DIR)/logger.c $(SRC_DIR)/da
 OBJS = $(OBJ_DIR)/main.o $(OBJ_DIR)/renderer.o $(OBJ_DIR)/logger.o $(OBJ_DIR)/data_structures.o
 
 # Arquivos de cabeçalho
-DEPS = $(INC_DIR)/renderer.h $(INC_DIR)/logger.h $(INC_DIR)/data_structures.h
+DEPS = $(INC_DIR)/renderer.h $(INC_DIR)/logger.h $(INC_DIR)/utils/data_structures.h $(INC_DIR)/utils/status.h
 
 .PHONY: all clean directories
 

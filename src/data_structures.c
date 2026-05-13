@@ -1,4 +1,4 @@
-#include "data_structures.h"
+#include "utils\data_structures.h"
 
 // Jogo - Métodos 
 
@@ -21,7 +21,7 @@ int compare_position(position_t p1, position_t p2){
 
 // ---------------- Comparar personagens ---------------- 
 // Retorna 1 em caso dos personagens serem iguais, retorna 0 caso contrário
-int compare_character(nodeData_t d1, nodeData_t d2){
+int compare_character(node_data_t d1, node_data_t d2){
     character_t p1 = d1.personagem;
     character_t p2 = d2.personagem;
     if(
@@ -38,7 +38,7 @@ int compare_character(nodeData_t d1, nodeData_t d2){
 
 // ---------------- Comparar inimigos ---------------- 
 // Retorna 1 em caso dos inimigos serem iguais, retorna 0 caso contrário
-int compare_enemy(nodeData_t d1, nodeData_t d2){
+int compare_enemy(node_data_t d1, node_data_t d2){
     enemy_t i1 = d1.inimigo;
     enemy_t i2 = d2.inimigo;
     if(
@@ -54,7 +54,7 @@ int compare_enemy(nodeData_t d1, nodeData_t d2){
 
 // ---------------- Comparar itens ---------------- 
 // Retorna 1 em caso dos itens serem iguais, retorna 0 caso contrário
-int compare_item(nodeData_t d1, nodeData_t d2){
+int compare_item(node_data_t d1, node_data_t d2){
     item_t i1 = d1.item;
     item_t i2 = d2.item;
     if(
@@ -70,7 +70,7 @@ int compare_item(nodeData_t d1, nodeData_t d2){
 
 // ---------------- Comparar movimento ---------------- 
 // Retorna 1 em caso dos movimentos serem iguais, retorna 0 caso contrário
-int compare_move(nodeData_t d1, nodeData_t d2){
+int compare_move(node_data_t d1, node_data_t d2){
     action_t m1 = d1.movimento;
     action_t m2 = d2.movimento;
     if(
@@ -86,7 +86,7 @@ int compare_move(nodeData_t d1, nodeData_t d2){
 
 // ---------------- Comparar obstaculos ---------------- 
 // Retorna 1 em caso dos obstaculos serem iguais, retorna 0 caso contrário
-int compare_obstacle(nodeData_t d1, nodeData_t d2){
+int compare_obstacle(node_data_t d1, node_data_t d2){
     obstacle_t o1 = d1.obstaculo;
     obstacle_t o2 = d2.obstaculo;
     if(
@@ -101,7 +101,7 @@ int compare_obstacle(nodeData_t d1, nodeData_t d2){
 
 // ---------------- Comparar eventos ---------------- 
 // Retorna 1 em caso dos eventos serem iguais, retorna 0 caso contrário
-int compare_event(nodeData_t d1, nodeData_t d2){
+int compare_event(node_data_t d1, node_data_t d2){
     event_t o1 = d1.evento;
     event_t o2 = d2.evento;
     if(
@@ -117,42 +117,42 @@ int compare_event(nodeData_t d1, nodeData_t d2){
 // ---------------- Imprimir posição ---------------- 
 // Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
 // Obs.: Dá fflush no file passado como argumento no fim da execução
-int print_position(position_t p, FILE* file){
-    if(fprintf(file ,"posicao: [%d, %d]\n", p.x, p.y) == -1) return 0;
+status_t print_position(position_t p, FILE* file){
+    if(fprintf(file ,"posicao: [%d, %d]\n", p.x, p.y) == -1) return ERR_INTERNAL;
 
     fflush(file);
 
-    return 1;
+    return SUCCESS;
 }
 
 // ---------------- Imprimir personagem ---------------- 
 // Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
-int print_character(character_t p, FILE* file){
-    if(fprintf(file ,"vida: %d\nmana: %d\n", p.life_points, p.mana_points) == -1) return 0;
+status_t print_character(character_t p, FILE* file){
+    if(fprintf(file ,"vida: %d\nmana: %d\n", p.life_points, p.mana_points) == -1) return ERR_INTERNAL;
 
     return print_position(p.position, file);
 }
 
 // ---------------- Imprimir inimigo ---------------- 
 // Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
-int print_enemy(enemy_t i, FILE* file){
-    if(fprintf(file ,"vida: %d\n", i.life_points) == -1) return 0;
+status_t print_enemy(enemy_t i, FILE* file){
+    if(fprintf(file ,"vida: %d\n", i.life_points) == -1) return ERR_INTERNAL;
 
     return print_position(i.position, file);
 }
 
 // ---------------- Imprimir item ---------------- 
 // Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
-int print_item(item_t i, FILE* file){
-    if(fprintf(file ,"valor: %d\n", i.valor) == -1) return 0;
+status_t print_item(item_t i, FILE* file){
+    if(fprintf(file ,"valor: %d\n", i.valor) == -1) return ERR_INTERNAL;
 
     return print_position(i.position, file);
 }
 
 // ---------------- Imprimir movimento ---------------- 
 // Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
-int print_move(action_t m, FILE* file){
-    if(fprintf(file ,"acao: %c\ndirecao: %c\n", m.acao, m.direcao) == -1) return 0;
+status_t print_move(action_t m, FILE* file){
+    if(fprintf(file ,"acao: %c\ndirecao: %c\n", m.acao, m.direcao) == -1) return ERR_INTERNAL;
 
     fflush(file);
 
@@ -161,13 +161,13 @@ int print_move(action_t m, FILE* file){
 
 // ---------------- Imprimir obstaculo ---------------- 
 // Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
-int print_obstacle(obstacle_t o, FILE* file){
+status_t print_obstacle(obstacle_t o, FILE* file){
     return print_position(o.position, file);
 }
 
 // ---------------- Imprimir evento ---------------- 
 // Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
-int print_event(event_t event, FILE* file){
+status_t print_event(event_t event, FILE* file){
     switch (event.event_type)
     {
     case MOVE:
@@ -176,21 +176,22 @@ int print_event(event_t event, FILE* file){
         if(event.main_entity_type == CHARACTER){
             character_t player = event.main_entity.character;
 
-            fprintf(file ,"player moveu para a ");
+            if(fprintf(file ,"player moveu para a ") == -1) return ERR_INTERNAL;
 
-            print_position(player.position, file);
+            if(IS_ERROR_STATUS(print_position(player.position, file))) return ERR_INTERNAL;
         }
 
         // Caso o main entity seja um enemy
         else if(event.main_entity_type == ENEMY){
             enemy_t enemy = event.main_entity.enemy;
 
-            fprintf(file ,"Inimigo moveu para a ");
+            if(fprintf(file ,"Inimigo moveu para a ") == -1) return ERR_INTERNAL;
 
-            print_position(enemy.position, file);
+            if(IS_ERROR_STATUS(print_position(enemy.position, file))) return ERR_INTERNAL;
         }
 
-        fprintf(file ,"\n");
+        if(fprintf(file ,"\n") == -1) return ERR_INTERNAL;
+
         break;
     }
     case COMBAT:
@@ -200,11 +201,11 @@ int print_event(event_t event, FILE* file){
             character_t player = event.main_entity.character;
             enemy_t enemy = event.secundary_entity.enemy;
 
-            fprintf(file ,"Player combateu o inimigo na ");
+            if(fprintf(file ,"Player combateu o inimigo na ") == -1) return ERR_INTERNAL;
 
-            print_position(enemy.position, file);
+            if(IS_ERROR_STATUS(print_position(enemy.position, file))) return ERR_INTERNAL;
 
-            fprintf(file ,"Vida atual do Player: %d      Vida atual do inimigo: %d\n\n", player.life_points, enemy.life_points);
+            if(fprintf(file ,"Vida atual do Player: %d      Vida atual do inimigo: %d\n\n", player.life_points, enemy.life_points) == -1) return ERR_INTERNAL;
         }
 
         // Caso o main entity seja um enemy e o secundary seja um character
@@ -212,18 +213,18 @@ int print_event(event_t event, FILE* file){
             character_t player = event.secundary_entity.character;
             enemy_t enemy = event.main_entity.enemy;
 
-            fprintf(file ,"O inimigo combateu o player na ");
+            if(fprintf(file ,"O inimigo combateu o player na ") == -1) return ERR_INTERNAL;
 
-            print_position(player.position, file);
+            if(IS_ERROR_STATUS(print_position(player.position, file))) return ERR_INTERNAL;
 
-            fprintf(file ,"Vida atual do Player: %d      Vida atual do inimigo: %d\n\n", player.life_points, enemy.life_points);
+            if(fprintf(file ,"Vida atual do Player: %d      Vida atual do inimigo: %d\n\n", player.life_points, enemy.life_points) == -1) return ERR_INTERNAL;
         }
 
         // Caso não seja desses tipos, dá erro
         else{
             fputs("ERROR - function print_event: Invalid entity types\n", stderr);
             fflush(stderr);
-            return 0;
+            return ERR_INVALID_IN;
         }
         
         break;
@@ -235,18 +236,18 @@ int print_event(event_t event, FILE* file){
             character_t player = event.main_entity.character;
             item_t item = event.secundary_entity.item;
 
-            fprintf(file ,"Player coletou o item na ");
+            if(fprintf(file ,"Player coletou o item na ") == -1) return ERR_INTERNAL;
 
-            print_position(item.position, file);
+            if(IS_ERROR_STATUS(print_position(item.position, file))) return ERR_INTERNAL;
 
-            fprintf(file ,"Mana atual do Player: %d      Valor do item: %d\n\n", player.mana_points, item.valor);
+            if(fprintf(file ,"Mana atual do Player: %d      Valor do item: %d\n\n", player.mana_points, item.valor) == -1) return ERR_INTERNAL;
         }
 
         // Caso não seja desses tipos, dá erro
         else{
             fputs("ERROR - function print_event: Invalid entity types\n", stderr);
             fflush(stderr);
-            return 0;
+            return ERR_INVALID_IN;
         }
 
         break;
@@ -258,35 +259,36 @@ int print_event(event_t event, FILE* file){
             character_t player = event.main_entity.character;
             skill_t skill = event.auxiliar_data.skill;
 
-            fprintf(file ,"Player usou a skill ");
+            if(fprintf(file ,"Player usou a skill ") == -1) return ERR_INTERNAL;
 
             switch (skill)
             {
             case HEALING_SPELL:
-                fprintf(file ,"Feitiço de cura\n");
+                if(fprintf(file ,"Feitiço de cura\n") == -1) return ERR_INTERNAL;
                 break;
             
             case FIREBALL:
-                fprintf(file ,"Feitiço de bola de fogo\n");
+                if(fprintf(file ,"Feitiço de bola de fogo\n") == -1) return ERR_INTERNAL;
                 break;
             
             case LIGHTNING:
-                fprintf(file ,"Feitiço de relampago\n");
+                if(fprintf(file ,"Feitiço de relampago\n") == -1) return ERR_INTERNAL;
                 break;
             
             default:
                 break;
             }
 
-            fprintf(file ,"Mana atual do Player: %d\n\n", player.mana_points);
+            if(fprintf(file ,"Mana atual do Player: %d\n\n", player.mana_points) == -1) return ERR_INTERNAL;
         }
 
         // Caso não seja desses tipos, dá erro
         else{
             fputs("ERROR - function print_event: Invalid entity type\n", stderr);
             fflush(stderr);
-            return 0;
+            return ERR_INVALID_IN;
         }
+
         break;
     }
     case DAMAGE:
@@ -296,9 +298,9 @@ int print_event(event_t event, FILE* file){
             character_t player = event.main_entity.character;
             int32_t damage = event.auxiliar_data.life_points;
 
-            fprintf(file ,"Player levou %d de dano\n", damage);
+            if(fprintf(file ,"Player levou %d de dano\n", damage) == -1) return ERR_INTERNAL;
 
-            fprintf(file ,"Vida atual do Player: %d\n\n", player.life_points);
+            if(fprintf(file ,"Vida atual do Player: %d\n\n", player.life_points) == -1) return ERR_INTERNAL;
         }
 
         // Caso o main entity seja um enemy
@@ -306,19 +308,19 @@ int print_event(event_t event, FILE* file){
             enemy_t enemy = event.main_entity.enemy;
             int32_t damage = event.auxiliar_data.life_points;
 
-            fprintf(file ,"Inimigo levou %d de dano\n", damage);
+            if(fprintf(file ,"Inimigo levou %d de dano\n", damage) == -1) return ERR_INTERNAL;
 
-            fprintf(file ,"Vida atual do inimigo: %d\t", enemy.life_points);
+            if(fprintf(file ,"Vida atual do inimigo: %d\t", enemy.life_points) == -1) return ERR_INTERNAL;
 
-            print_position(enemy.position, file);
-            fprintf(file, "\n");
+            if(IS_ERROR_STATUS(print_position(enemy.position, file))) return ERR_INTERNAL;
+            if(fprintf(file, "\n") == -1) return ERR_INTERNAL;
         }
 
         // Caso não seja desses tipos, dá erro
         else{
             fputs("ERROR - function print_event: Invalid entity types\n", stderr);
             fflush(stderr);
-            return 0;
+            return ERR_INVALID_IN;
         }
 
         break;
@@ -329,14 +331,14 @@ int print_event(event_t event, FILE* file){
         if(event.main_entity_type == CHARACTER){
             character_t player = event.main_entity.character;
 
-            fprintf(file ,"Player venceu\nVida do personagem: %d      Mana do personagem: %d\n\n", player.life_points, player.mana_points);
+            if(fprintf(file ,"Player venceu\nVida do personagem: %d      Mana do personagem: %d\n\n", player.life_points, player.mana_points) == -1) return ERR_INTERNAL;
         }
 
         // Caso não seja desses tipos, dá erro
         else{
             fputs("ERROR - function print_event: Invalid entity types\n", stderr);
             fflush(stderr);
-            return 0;
+            return ERR_INVALID_IN;
         }
         
         break;
@@ -347,14 +349,14 @@ int print_event(event_t event, FILE* file){
         if(event.main_entity_type == CHARACTER){
             character_t player = event.main_entity.character;
 
-            fprintf(file ,"Player perdeu\nVida do personagem: %d      Mana do personagem: %d\n\n", player.life_points, player.mana_points);
+            if(fprintf(file ,"Player perdeu\nVida do personagem: %d      Mana do personagem: %d\n\n", player.life_points, player.mana_points) == -1) return ERR_INTERNAL;
         }
 
         // Caso não seja desses tipos, dá erro
         else{
             fputs("ERROR - function print_event: Invalid entity types\n", stderr);
             fflush(stderr);
-            return 0;
+            return ERR_INVALID_IN;
         }
 
         break;
@@ -365,7 +367,7 @@ int print_event(event_t event, FILE* file){
 
     fflush(file);
 
-    return 1;
+    return SUCCESS;
 }
 
 #endif
@@ -378,21 +380,21 @@ int print_event(event_t event, FILE* file){
 
 // ---------------- Comparar listas ---------------- 
 // Retorna 1 em caso do dado estar vazio, retorna 0 caso contrário
-int isDataEmpty(nodeData_t d){
+bool is_data_empty(node_data_t d){
     return (d.lista == NULL);
 }
 
 // ---------------- Comparar listas ---------------- 
-// Retorna 1 em caso das listas serem iguais, retorna 0 caso contrário
-int compare_list(nodeData_t d1, nodeData_t d2){
-    linkedList_t* l1 = d1.lista;
-    linkedList_t* l2 = d2.lista;
+// Retorna 1 em caso das listas forem as mesmas, retorna 0 caso contrário
+int compare_list(node_data_t d1, node_data_t d2){
+    linked_list_t* l1 = d1.lista;
+    linked_list_t* l2 = d2.lista;
     return (l1 == l2);
 }
 
 // ---------------- Criar lista ---------------- 
 // Retorna o endereço da lista em caso de sucesso, retorna NULL em caso de fracasso
-linkedList_t* create_linked_list(int listType){
+linked_list_t* create_linked_list(list_type_t listType){
     if(!(listType >= CHARACTER_TYPE && listType <= LIST_TYPE)){
         fputs("ERROR - function create_linked_list: Invalid list type\n", stderr);
         fflush(stderr);
@@ -400,7 +402,7 @@ linkedList_t* create_linked_list(int listType){
     }
 
     // Aloca o espaço na memória para uma nova lista
-    linkedList_t* newList = (linkedList_t*) malloc(sizeof(linkedList_t));
+    linked_list_t* newList = (linked_list_t*) malloc(sizeof(linked_list_t));
 
     // Verifica se pôde alocar a memória da lista
     if(newList == NULL){
@@ -426,34 +428,33 @@ linkedList_t* create_linked_list(int listType){
 // ------------ Inserção por índice ------------
 // Insere um novo nó depois do nó com o indíce passado como argumento
 // Insere na cabeça caso passe indíce negativo
-// Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
-int insert_linked_list(linkedList_t* list, nodeData_t data, int index){
+status_t insert_linked_list(linked_list_t* list, node_data_t data, int index){
     // Se o index for igual ou maior que 0
     if(index >= 0){
         if(index >= list->length){
             fputs("ERROR - function insert_linked_list: Index out of range\n", stderr);
             fflush(stderr);
-            return 0;
+            return ERR_INVALID_IN;
         }
 
         // O local onde o nó vai ser posto é encontrado
-        linkedNode_t* currentNode = search_linked_list(list, index);
+        linked_node_t* currentNode = search_linked_list(list, index);
 
         // Verifica se encontrou o local na lista
         if(currentNode == NULL){
             fputs("ERROR - function insert_linked_list: Couldn't find target node\n", stderr);
             fflush(stderr);
-            return 0;
+            return ERR_DATA;
         }
 
         // O espaço para o novo nó é alocado
-        linkedNode_t* newNode = (linkedNode_t*) malloc(sizeof(linkedNode_t));
+        linked_node_t* newNode = (linked_node_t*) malloc(sizeof(linked_node_t));
 
         // Verifica se memória foi alocada ou não para o novo nó
         if(newNode == NULL){
             fputs("ERROR - function insert_linked_list: Couldn't allocate memory for a new node\n", stderr);
             fflush(stderr);
-            return 0;
+            return ERR_MEMORY;
         }
 
         // Os dados são postos no novo nó
@@ -474,13 +475,13 @@ int insert_linked_list(linkedList_t* list, nodeData_t data, int index){
     // Se o index for menor que 0
     else{
         // O espaço para o novo nó é alocado
-        linkedNode_t* newNode = (linkedNode_t*) malloc(sizeof(linkedNode_t));
+        linked_node_t* newNode = (linked_node_t*) malloc(sizeof(linked_node_t));
 
         // Verifica se memória foi alocada ou não para o novo nó
         if(newNode == NULL){
             fputs("ERROR - function insert_linked_list: Couldn't allocate memory for a new node\n", stderr);
             fflush(stderr);
-            return 0;
+            return ERR_MEMORY;
         }
 
         // Os dados são postos no novo nó
@@ -501,34 +502,33 @@ int insert_linked_list(linkedList_t* list, nodeData_t data, int index){
     // O tamanho da lista aumenta em um
     list->length++;
 
-    return 1;
+    return SUCCESS;
 }
 
 // ------------ Remoção por índice -------------
-// Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
-int remove_linked_list(linkedList_t* list, int index){
+status_t remove_linked_list(linked_list_t* list, int index){
     if(index < 0 || index >= list->length){
         fputs("ERROR - function remove_linked_list: Index out of range\n", stderr);
         fflush(stderr);
-        return 0;
+        return ERR_INVALID_IN;
     }
 
     // Caso não seja o primeiro item da lista
     if(index > 0){
         // Pega o nó alvo e o nó anterior a ele
-        linkedNode_t* previousNode = search_linked_list(list, index - 1);
+        linked_node_t* previousNode = search_linked_list(list, index - 1);
         if(previousNode == NULL){
             fputs("ERROR - function remove_linked_list: Couldn't find target node\n", stderr);
             fflush(stderr);
-            return 0;
+            return ERR_DATA;
         }
-        linkedNode_t* targetNode = previousNode->next;
+        linked_node_t* targetNode = previousNode->next;
 
         if(list->listType == LIST_TYPE){
-            if(delete_linked_list(targetNode->data.lista) == 0){
+            if(IS_ERROR_STATUS(delete_linked_list(targetNode->data.lista))){
                 fputs("ERROR - function remove_linked_list: Couldn't delete target node's list\n", stderr);
                 fflush(stderr);
-                return 0;
+                return ERR_DATA;
             }
         }
 
@@ -547,18 +547,24 @@ int remove_linked_list(linkedList_t* list, int index){
     // Caso seja o primeiro item da lista
     else if(index == 0){
         // Pega o alvo que está na cabeça da lista
-        linkedNode_t* targetNode = list->head;
+        linked_node_t* target_node = list->head;
+
+        if(target_node == NULL){
+            fputs("ERROR - function remove_linked_list: List head points to NULL\n", stderr);
+            fflush(stderr);
+            return ERR_DATA;
+        }
 
         // Muda a cabeça para o segundo nó
-        list->head = targetNode->next;
+        list->head = target_node->next;
 
         // Caso o nó removido também for a cauda, a cauda aponta pra NULL
-        if(list->tail == targetNode){
+        if(list->tail == target_node){
             list->tail = NULL;
         }
 
         // Libera o nó da memória
-        free(targetNode);
+        free(target_node);
     }
 
     list->length--;
@@ -567,7 +573,7 @@ int remove_linked_list(linkedList_t* list, int index){
 
 // ------------ Pesquisa por índice ------------
 // Retorna o endereço do nó procurado em caso de sucesso, retorna NULL em caso de fracasso
-linkedNode_t* search_linked_list(linkedList_t* list, int index){
+linked_node_t* search_linked_list(linked_list_t* list, int index){
     if(index < 0 || index >= list->length){
         fputs("ERROR - function search_linked_list: Index out of range\n", stderr);
         fflush(stderr);
@@ -575,7 +581,7 @@ linkedNode_t* search_linked_list(linkedList_t* list, int index){
         return NULL;
     }
 
-    linkedNode_t* currentNode = list->head;
+    linked_node_t* currentNode = list->head;
     for(int i = 0; i < index; i++){
         currentNode = currentNode->next;
     }
@@ -585,29 +591,35 @@ linkedNode_t* search_linked_list(linkedList_t* list, int index){
 
 // --------------- Deletar lista --------------- 
 // Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
-int delete_linked_list(linkedList_t* list){
+status_t delete_linked_list(linked_list_t* list){
     // Se a lista não está vazia, libera cada nó da lista primeiro
     if(list->length != 0){
-        // A variável targetNode é usada para apontar para os nós que são liberados
-        // e currentNode é usada para percorrer a lista
-        linkedNode_t* targetNode, * currentNode = list->head;
+        // A variável target_node é usada para apontar para os nós que são liberados
+        // e current_node é usada para percorrer a lista
+        linked_node_t* target_node, * current_node = list->head;
         for(int i = 0; i < list->length; i++){
             // O nó a ser liberado é o nó atual
-            targetNode = currentNode;
+            target_node = current_node;
 
-            // currentNode avança
-            currentNode = currentNode->next;
+            if(current_node == NULL){
+                fputs("ERROR - function delete_linked_list: current_node points to NULL\n", stderr);
+                fflush(stderr);
+                return ERR_DATA;
+            }
+
+            // current_node avança
+            current_node = current_node->next;
 
             if(list->listType == LIST_TYPE){
-                if(delete_linked_list(targetNode->data.lista) == 0){
+                if(IS_ERROR_STATUS(delete_linked_list(target_node->data.lista))){
                     fputs("ERROR - function delete_linked_list: Couldn't delete target node's list\n", stderr);
                     fflush(stderr);
-                    return 0;
+                    return ERR_DATA;
                 }
             }
 
             // O nó é liberado
-            free(targetNode);
+            free(target_node);
         }
     }
 
@@ -617,14 +629,14 @@ int delete_linked_list(linkedList_t* list){
 
 // ------------ Pesquisa por Dado ------------
 // Retorna o indíce do nó em caso de sucesso, retorna -1 em caso de fracasso
-int search_data_linked_list(linkedList_t* list, nodeData_t data){
+int search_data_linked_list(linked_list_t* list, node_data_t data){
     if(list->length < 1){
         fputs("ERROR - function search_data_linked_list: Empty list\n", stderr);
         fflush(stderr);
         return -1;
     }
 
-    linkedNode_t* currentNode = list->head;
+    linked_node_t* currentNode = list->head;
 
     comparison compare;
 
@@ -683,14 +695,14 @@ int search_data_linked_list(linkedList_t* list, nodeData_t data){
 #ifdef JOGO
 // ------------ Pesquisa por Posição no Tabuleiro ------------
 // Retorna o indíce do nó em caso de sucesso, retorna -1 em caso de fracasso
-int search_position_linked_list(linkedList_t* list, position_t searched_position){
+int search_position_linked_list(linked_list_t* list, position_t searched_position){
     if(list->length < 1){
         fputs("ERROR - function search_data_linked_list: Empty list\n", stderr);
         fflush(stderr);
         return -1;
     }
 
-    linkedNode_t* current_node = list->head;
+    linked_node_t* current_node = list->head;
 
     for(int i = 0; i < list->length; i++){
         position_t current_position;
@@ -735,80 +747,78 @@ int search_position_linked_list(linkedList_t* list, position_t searched_position
 
 // ------------ Impressão da Lista ------------
 // Printa cada item da lista
-void print_list(linkedList_t* list, FILE* file){
-    linkedNode_t* currentNode = list->head;
+status_t print_list(linked_list_t* list, FILE* file){
+    linked_node_t* current_node = list->head;
     int mode = list->listType;
     for(int i = 0; i < list->length; i++){
+        if(current_node == NULL){
+            fputs("ERROR - function print_list: current_node points to NULL\n", stderr);
+            fflush(stderr);
+            return ERR_DATA;
+        }
         switch (mode)
         {
         #ifdef JOGO
 
         case CHARACTER_TYPE:
-            printf("\nPersonagem  %d\n", i + 1);
-            fflush(stdout);
+            fprintf(file, "\nPersonagem  %d\n", i + 1);
 
-            print_character(currentNode->data.personagem, file);
+            print_character(current_node->data.personagem, file);
             break;
         
         case ENEMY_TYPE:
-            printf("\nInimigo  %d\n", i + 1);
-            fflush(stdout);
+            fprintf(file, "\nInimigo  %d\n", i + 1);
 
-            print_enemy(currentNode->data.inimigo, file);
+            print_enemy(current_node->data.inimigo, file);
             break;
         
         case ITEM_TYPE:
-            printf("\nItem  %d\n", i + 1);
-            fflush(stdout);
+            fprintf(file, "\nItem  %d\n", i + 1);
 
-            print_item(currentNode->data.item, file);
+            print_item(current_node->data.item, file);
             break;
         
         case MOVE_TYPE:
-            printf("\nMovimento  %d\n", i + 1);
-            fflush(stdout);
+            fprintf(file, "\nMovimento  %d\n", i + 1);
 
-            print_move(currentNode->data.movimento, file);
+            print_move(current_node->data.movimento, file);
             break;
             
         case OBSTACLE_TYPE:
-            printf("\nObstaculo  %d\n", i + 1);
-            fflush(stdout);
+            fprintf(file, "\nObstaculo  %d\n", i + 1);
 
-            print_obstacle(currentNode->data.obstaculo, file);
+            print_obstacle(current_node->data.obstaculo, file);
             break;
 
         #endif
         
         case LIST_TYPE:
-            printf("\nLista  %d\n", i + 1);
-            fflush(stdout);
+            fprintf(file, "\nLista  %d\n", i + 1);
 
-            linkedList_t* currentList = currentNode->data.lista;
+            linked_list_t* current_list = current_node->data.lista;
 
-            printf("Lista de ");
-            fflush(stdout);
+            fprintf(file, "Lista de ");
 
-            switch (currentList->listType)
+            switch (current_list->listType)
             {
             case CHARACTER_TYPE:
-                printf("personagem\n");
+                fprintf(file, "personagem\n");
                 break;
             
             case ENEMY_TYPE:
-                printf("inimigo\n");
+                fprintf(file, "inimigo\n");
                 break;
             
             case ITEM_TYPE:
-                printf("item\n");
+                fprintf(file, "item\n");
                 break;
             
             case MOVE_TYPE:
-                printf("movimento\n");
+                fprintf(file, "movimento\n");
                 break;
             
             case LIST_TYPE:
-                printf("lista\n");
+                fprintf(file, "lista\n");
                 break;
             
             default:
@@ -820,12 +830,14 @@ void print_list(linkedList_t* list, FILE* file){
         default:
             fputs("ERROR - function print_list: Invalid mode\n", stderr);
             fflush(stderr);
-            return;
+            return ERR_INVALID_IN;
             break;
         }
 
-        currentNode = currentNode->next;
+        current_node = current_node->next;
     }
+
+    return SUCCESS;
 }
 
 #endif
@@ -855,19 +867,19 @@ queue_t* create_queue(int listType){
 
 // ------------ Front ------------
 // Retorna o dado do primeiro elemento em caso de sucesso, não retorna nada em caso de fracasso
-nodeData_t front(queue_t* queue){
+node_data_t front(queue_t* queue){
     if (queue->length < 1)
     {
         fputs("ERROR - function front: Empty queue\n", stderr);
         fflush(stderr);
-        nodeData_t emptyData;
+        node_data_t emptyData;
         emptyData.lista = NULL;
         return emptyData;
     }else if (queue->head == NULL)
     {
         fputs("ERROR - function front: Queue head points to NULL\n", stderr);
         fflush(stderr);
-        nodeData_t emptyData;
+        node_data_t emptyData;
         emptyData.lista = NULL;
         return emptyData;
     }else{
@@ -877,16 +889,16 @@ nodeData_t front(queue_t* queue){
 
 // ------------ Enqueue ------------
 // Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
-int enqueue(queue_t* queue, nodeData_t data){
-    return insert_linked_list((linkedList_t*) queue, data, queue->length - 1);
+status_t enqueue(queue_t* queue, node_data_t data){
+    return insert_linked_list((linked_list_t*) queue, data, queue->length - 1);
 }
 
 // ------------ Dequeue ------------
 // Retorna o dado do primeiro elemento em caso de sucesso, não retorna nada em caso de fracasso
-nodeData_t dequeue(queue_t* queue){
-    nodeData_t result = front(queue);
+node_data_t dequeue(queue_t* queue){
+    node_data_t result = front(queue);
 
-    if(remove_linked_list((linkedList_t *) queue, 0) == 0){
+    if(IS_ERROR_STATUS(remove_linked_list((linked_list_t *) queue, 0))){
         fputs("ERROR - function dequeue: Couldn't remove node from queue\n", stderr);
         fflush(stderr);
     }
@@ -896,14 +908,14 @@ nodeData_t dequeue(queue_t* queue){
 
 // ------------ Impressão da Fila ------------
 // Printa cada item da Fila
-void print_queue(queue_t* queue, FILE* file){
-    print_list((linkedList_t*) queue, file);
+status_t print_queue(queue_t* queue, FILE* file){
+    return print_list((linked_list_t*) queue, file);
 }
 
 // --------------- Deletar fila --------------- 
 // Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
-int delete_queue(queue_t* queue){
-    return delete_linked_list((linkedList_t*) queue);
+status_t delete_queue(queue_t* queue){
+    return delete_linked_list((linked_list_t*) queue);
 }
 
 #endif
@@ -923,21 +935,21 @@ stack_t* create_stack(int listType){
     return newStack;
 }
 
-// ------------ Front ------------
+// ------------ Top ------------
 // Retorna o dado do primeiro elemento em caso de sucesso, não retorna nada em caso de fracasso
-nodeData_t top(stack_t* stack){
+node_data_t top(stack_t* stack){
     if (stack->length < 1)
     {
         fputs("ERROR - function top: Empty stack\n", stderr);
         fflush(stderr);
-        nodeData_t emptyData;
+        node_data_t emptyData;
         emptyData.lista = NULL;
         return emptyData;
     }else if (stack->head == NULL)
     {
         fputs("ERROR - function top: Stack head points to NULL\n", stderr);
         fflush(stderr);
-        nodeData_t emptyData;
+        node_data_t emptyData;
         emptyData.lista = NULL;
         return emptyData;
     }else{
@@ -945,18 +957,17 @@ nodeData_t top(stack_t* stack){
     }
 }
 
-// ------------ Enqueue ------------
-// Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
-int push(stack_t* stack, nodeData_t data){
-    return insert_linked_list((linkedList_t*) stack, data, -1);
+// ------------ Push ------------
+status_t push(stack_t* stack, node_data_t data){
+    return insert_linked_list((linked_list_t*) stack, data, -1);
 }
 
-// ------------ Dequeue ------------
+// ------------ Pop ------------
 // Retorna o dado do primeiro elemento em caso de sucesso, não retorna nada em caso de fracasso
-nodeData_t pop(stack_t* stack){
-    nodeData_t result = top(stack);
+node_data_t pop(stack_t* stack){
+    node_data_t result = top(stack);
 
-    if(remove_linked_list((linkedList_t *) stack, 0) == 0){
+    if(IS_ERROR_STATUS(remove_linked_list((linked_list_t *) stack, 0))){
         fputs("ERROR - function pop: Couldn't remove node from stack\n", stderr);
         fflush(stderr);
     }
@@ -966,14 +977,13 @@ nodeData_t pop(stack_t* stack){
 
 // ------------ Impressão da Fila ------------
 // Printa cada item da Fila
-void print_stack(stack_t* stack){
-    print_list((linkedList_t*) stack);
+status_t print_stack(stack_t* stack){
+    return print_list((linked_list_t*) stack);
 }
 
-// --------------- Deletar fila --------------- 
-// Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
-int delete_stack(stack_t* stack){
-    return delete_linked_list((linkedList_t*) stack);
+// --------------- Deletar pilha --------------- 
+status_t delete_stack(stack_t* stack){
+    return delete_linked_list((linked_list_t*) stack);
 }
 
 #endif
