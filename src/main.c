@@ -1,17 +1,16 @@
 #include <stdio.h>
-#include <conio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <math.h>
 #include <windows.h>
 #include <time.h>
-#include <ctype.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
 
 #include "utils/status.h"
+#include "utils/input.h"
 
 #include "logger.h"
 
@@ -24,13 +23,12 @@
 
 #ifdef DEBUG
 
-#define ENEMY_QUANTITY 10
-#define ITEM_QUANTITY 10
-#define OBSTACLE_QUANTITY 10
-
 #endif
 
 // Constantes
+#define ENEMY_QUANTITY 10
+#define ITEM_QUANTITY 10
+#define OBSTACLE_QUANTITY 10
 #define INITIAL_HP 100
 #define MAX_BOARD_SIZE 30
 #define MIN_BOARD_SIZE 4
@@ -45,7 +43,7 @@
 // Variáveis globais
 char** board;
 int boardSize;
-//int atualizarTabuleiro = 1;
+extern char keyboard_input;
 character_t* player;
 linked_list_t *enemyList, *itemList, *obstacleList;
 queue_t *moveQueue, *logQueue;
@@ -71,8 +69,6 @@ sem_t render_sem;
 
 // Função principal de loop
 status_t loop();
-
-char ler_input();
 
 // Função de inicialização
 char** inicializar_tabuleiro(int N);
@@ -156,6 +152,10 @@ int main(){
     const int quantidade_obstaculos = tiles/8; 
 
     board = inicializar_tabuleiro(boardSize);
+    if(board == NULL){
+        finalizar_programa();
+        return 1;
+    }
 
     int posicao[2] = {0};
 
@@ -165,19 +165,25 @@ int main(){
     // Limita a posição inicial do personagem para sempre ficar dentro do tabuleiro
     if(posicao[0] > boardSize - 1){
         posicao[0] = boardSize - 1;
-        LOG_ERROR("Initial player's position is outside of the board limits");
+        LOG_WARNING("Initial player's position is outside of the board limits");
     }
     if(posicao[0] < 0){
         posicao[0] = 0;
-        LOG_ERROR("Initial player's position is outside of the board limits");
+        LOG_WARNING("Initial player's position is outside of the board limits");
     }
 
     printf("Digite a posicao y do personagem: ");
     fflush(stdout);
     scanf("%d", &(posicao[1]));
     // Limita a posição inicial do personagem para sempre ficar dentro do tabuleiro
-    if(posicao[1] > boardSize - 1) posicao[1] = boardSize - 1;
-    if(posicao[1] < 0) posicao[1] = 0;
+    if(posicao[1] > boardSize - 1){
+        posicao[1] = boardSize - 1;
+        LOG_WARNING("Initial player's position is outside of the board limits");
+    }
+    if(posicao[1] < 0){
+        posicao[1] = 0;
+        LOG_WARNING("Initial player's position is outside of the board limits");
+    }
 
     position_t player_initial_position = {
         .x = posicao[0],
@@ -262,8 +268,6 @@ int main(){
 }
 
 status_t loop(){
-    char input;
-
     if(IS_ERROR_STATUS(atualizar_posicoes())){
         LOG_ERROR("Couldn't update positions");
         return ERR_INTERNAL;
@@ -294,18 +298,18 @@ status_t loop(){
     printf("Acao ('WASD' para movimento, 'C' para feitico de cura, 'R' para relampago, 'B' para bola de fogo, 'Q' para sair do programa): \n");
     fflush(stdout);
 
-    input = ler_input();
+    update_keyboard_input();
     #endif
 
     #ifdef DEBUG
 
     fflush(stdout);
     Sleep(500);
-    input = 'S';
+    keyboard_input = 'S';
 
     #endif
 
-    switch (input)
+    switch (keyboard_input)
     {
     case 'Q':
         return ACTION_SKIPPED;
@@ -315,7 +319,7 @@ status_t loop(){
     case 'A':
     case 'S':
     case 'D':{
-            if(IS_ERROR_STATUS(adicionar_comando_fila(moveQueue, 'M', input))){
+            if(IS_ERROR_STATUS(adicionar_comando_fila(moveQueue, 'M', keyboard_input))){
                 LOG_ERROR("Couldn't add move into queue");
                 return ERR_INTERNAL;
             }
@@ -353,17 +357,17 @@ status_t loop(){
     case 'R':
         printf("Direcao: 'WASD'\n");
 
-        input = ler_input();
+        update_keyboard_input();
 
-        usar_habilidade(player, LIGHTNING, input);
+        usar_habilidade(player, LIGHTNING, keyboard_input);
         break;
     
     case 'B':
         printf("Direcao: 'WASD'\n");
 
-        input = ler_input();
+        update_keyboard_input();
 
-        usar_habilidade(player, FIREBALL, input);
+        usar_habilidade(player, FIREBALL, keyboard_input);
 
         break;
     
@@ -379,16 +383,6 @@ status_t loop(){
     }
 
     return SUCCESS;
-}
-
-char ler_input(){
-    char input;
-
-    while(!_kbhit());
-    input = _getch();
-    input = toupper(input);
-
-    return input;
 }
 
 char** inicializar_tabuleiro(int N){

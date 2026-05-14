@@ -338,7 +338,35 @@ status_t log_error(const char* file_name, uint32_t line, const char* function_na
     // Posta no semáforo da log queue para sinalizar que há mais um evento na fila
     sem_post(&log_queue_sem);
 
-    
+    return SUCCESS;
+}
+
+// Manda um log de warning para o logger processar
+status_t log_warning(const char* file_name, uint32_t line, const char* function_name, const char* warning_text){
+    // Cria o log
+    log_t log_msg;
+
+    snprintf(
+        log_msg.text, LOG_LENGTH, 
+        "[WARNING] %s:%d (%s): %s\n\n",
+        file_name, line, function_name, warning_text
+    );
+
+    // Pega o mutex para usar a log queue
+    pthread_mutex_lock(&log_queue_mutex);
+
+    // Bota o evento na fila
+    if(IS_ERROR_STATUS(enqueue(logQueue, (node_data_t) log_msg))){
+        fputs("ERROR - function log_error: Couldn't enqueue log\n", stderr);
+        fflush(stderr);
+        return ERR_DATA;
+    }
+
+    // Devolve o mutex de usar a log queue
+    pthread_mutex_unlock(&log_queue_mutex); 
+
+    // Posta no semáforo da log queue para sinalizar que há mais um evento na fila
+    sem_post(&log_queue_sem);
 
     return SUCCESS;
 }

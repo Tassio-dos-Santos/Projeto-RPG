@@ -52,11 +52,13 @@ status_t log_defeat(character_t jogador);
 
 // Funções de log para erros e avisos
 status_t log_error(const char* file_name, uint32_t line, const char* function_name, const char* error_text);
+status_t log_warning(const char* file_name, uint32_t line, const char* function_name, const char* warning_text);
 
 // Funções de log para debug
 
 
 // Macros para erros, avisos e debug
 #define LOG_ERROR(error_text) log_error(__FILE__, __LINE__, __FUNCTION__, error_text)
+#define LOG_WARNING(warning_text) log_warning(__FILE__, __LINE__, __FUNCTION__, warning_text)
 
 #endif
