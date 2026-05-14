@@ -18,7 +18,7 @@ SRCS = $(wildcard $(SRC_DIR)/*.c)
 OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 
 # Arquivos de cabeçalho
-DEPS = $(INC_DIR)/renderer.h $(INC_DIR)/logger.h $(INC_DIR)/utils/data_structures.h $(INC_DIR)/utils/status.h $(INC_DIR)/utils/input.h
+DEPS = $(wildcard $(INC_DIR)/*.h) $(wildcard $(INC_DIR)/utils/*.h)
 
 .PHONY: all clean directories
 
