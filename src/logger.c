@@ -3,24 +3,23 @@
 void *logger(void* argv){
     // Inicia o arquivo de log
     FILE *log_file = fopen("log/RPG.log", "w");
+    int sem_value = 0;
+    sem_getvalue(&log_queue_sem, &sem_value);
 
-    while(!end_logger){
+    while(!end_logger || sem_value != 0){
         // Tira valor do semáforo
         sem_wait(&log_queue_sem);
-        if(end_logger) break;
+        sem_getvalue(&log_queue_sem, &sem_value);
 
         // Se a log queue estiver vazia
         if(logQueue->length < 1){
-            // Devolve o mutex
-            pthread_mutex_unlock(&log_queue_mutex);
-
             // E volta ao início do loop
             continue;
         }
 
         // Pega o mutex da log queue
         pthread_mutex_lock(&log_queue_mutex);
-        if(end_logger) break;
+        sem_getvalue(&log_queue_sem, &sem_value);
 
         // Pega o dado da frente da fila
         node_data_t data_log = dequeue(logQueue);
@@ -51,17 +50,19 @@ void *logger(void* argv){
             fputs("ERROR - thread logger: Couldn't write log\n", stderr);
             return NULL;
         }
+
+        sem_getvalue(&log_queue_sem, &sem_value);
     }
 
     fclose(log_file);
 }
 
-// Loga um movimento num arquivo de log especificado
-status_t log_move(action_t m){
+// Manda um log de movimento para o logger processar
+status_t log_move(character_t jogador){
     // Cria o log
     log_t log_msg;
 
-    snprintf(log_msg.text, LOG_LENGTH, "Player se moveu para a posição [%d, %d]\n\n", player->position.x, player->position.y);
+    snprintf(log_msg.text, LOG_LENGTH, "[INFO] Player se moveu para a posição [%d, %d]\n\n", jogador.position.x, jogador.position.y);
 
     // Pega o mutex para usar a log queue
     pthread_mutex_lock(&log_queue_mutex);
@@ -82,15 +83,15 @@ status_t log_move(action_t m){
     return SUCCESS;
 }
 
-// Loga um item coletado num arquivo de log especificado
-status_t log_item_collected(item_t item){
+// Manda um log de coleta de item para o logger processar
+status_t log_item_collected(character_t jogador, item_t item){
     // Cria o log
     log_t log_msg;
 
     snprintf(
         log_msg.text, LOG_LENGTH, 
-        "Player coletou o item na posicao: [%d, %d]\nMana atual do player: %d\tValor do item: %d\n\n",
-        item.position.x, item.position.y, player->mana_points, item.valor);
+        "[INFO] Player coletou o item na posicao: [%d, %d]\nMana atual do player: %d\tValor do item: %d\n\n",
+        item.position.x, item.position.y, jogador.mana_points, item.valor);
 
     // Pega o mutex para usar a log queue
     pthread_mutex_lock(&log_queue_mutex);
@@ -111,7 +112,7 @@ status_t log_item_collected(item_t item){
     return SUCCESS;
 }
 
-// Loga um combate num arquivo de log especificado
+// Manda um log de combate para o logger processar
 status_t log_combat(entity_t main_entity, entity_t secundary_entity, entity_type_t main_entity_type){
     // Cria o log
     log_t log_msg;
@@ -122,18 +123,18 @@ status_t log_combat(entity_t main_entity, entity_t secundary_entity, entity_type
 
         snprintf(
             log_msg.text, LOG_LENGTH, 
-            "Player combateu o inimigo na posicao: [%d, %d]\nVida atual do Player: %d\tVida atual do inimigo: %d\n\n",
+            "[INFO] Player combateu o inimigo na posicao: [%d, %d]\nVida atual do Player: %d\tVida atual do inimigo: %d\n\n",
             inimigo.position.x, inimigo.position.y, jogador.life_points, inimigo.life_points
         );
     }
 
     else if(main_entity_type == ENEMY){
-        character_t jogador = main_entity.character;
-        enemy_t inimigo = secundary_entity.enemy;
+        character_t jogador = secundary_entity.character;
+        enemy_t inimigo = main_entity.enemy;
 
         snprintf(
             log_msg.text, LOG_LENGTH, 
-            "O inimigo combateu o player na posicao: [%d, %d]\nVida atual do Player: %d\tVida atual do inimigo: %d\n\n",
+            "[INFO] O inimigo combateu o player na posicao: [%d, %d]\nVida atual do Player: %d\tVida atual do inimigo: %d\n\n",
             jogador.position.x, jogador.position.y, jogador.life_points, inimigo.life_points
         );
     }
@@ -157,37 +158,42 @@ status_t log_combat(entity_t main_entity, entity_t secundary_entity, entity_type
     return SUCCESS;
 }
 
-// Loga um combate num arquivo de log especificado
-status_t log_damage(entity_t main_entity, entity_type_t main_entity_type, int32_t damage){
+// Manda um log de uso de habilidade para o logger processar
+status_t log_skill(character_t jogador, skill_t skill){
     // Cria o log
     log_t log_msg;
 
-    if(main_entity_type == CHARACTER){
-        character_t jogador = main_entity.character;
-
-        snprintf(
-            log_msg.text, LOG_LENGTH, 
-            "Player levou %d de dano\nVida atual do Player: %d\tMana atual do Player: %d\n\n",
-            damage, jogador.life_points, jogador.mana_points
-        );
+    char skill_string[64] = {0};
+    switch (skill)
+    {
+    case HEALING_SPELL:
+        strcpy(skill_string, "feitico de cura\0");
+        break;
+    
+    case LIGHTNING:
+        strcpy(skill_string, "feitico de relampago\0");
+        break;
+    
+    case FIREBALL:
+        strcpy(skill_string, "feitico de bola de fogo\0");
+        break;
+    
+    default:
+        break;
     }
-
-    else if (main_entity_type == ENEMY){
-        enemy_t inimigo = main_entity.enemy;
-
-        snprintf(
-            log_msg.text, LOG_LENGTH, 
-            "Inimigo levou %d de dano\nVida atual do inimigo: %d\n\n",
-            damage, inimigo.life_points
-        );
-    }
+    
+    snprintf(
+        log_msg.text, LOG_LENGTH, 
+        "[INFO] Player usou a habilidade %s\nVida atual do Player: %d\tMana atual do Player: %d\n\n",
+        skill_string, jogador.life_points, jogador.mana_points
+    );
 
     // Pega o mutex para usar a log queue
     pthread_mutex_lock(&log_queue_mutex);
 
     // Bota o evento na fila
     if(IS_ERROR_STATUS(enqueue(logQueue, (node_data_t) log_msg))){
-        fputs("ERROR - function log_combat: Couldn't enqueue log\n", stderr);
+        fputs("ERROR - function log_skill: Couldn't enqueue log\n", stderr);
         fflush(stderr);
         return ERR_DATA;
     }
@@ -197,6 +203,142 @@ status_t log_damage(entity_t main_entity, entity_type_t main_entity_type, int32_
 
     // Posta no semáforo da log queue para sinalizar que há mais um evento na fila
     sem_post(&log_queue_sem);
+
+    return SUCCESS;
+}
+
+// Manda um log de dano para o logger processar
+status_t log_damage(entity_t main_entity, entity_type_t main_entity_type, int32_t damage){
+    // Cria o log
+    log_t log_msg;
+
+    if(main_entity_type == CHARACTER){
+        character_t jogador = main_entity.character;
+
+        snprintf(
+            log_msg.text, LOG_LENGTH, 
+            "[INFO] Player levou %d de dano\nVida atual do Player: %d\tMana atual do Player: %d\n\n",
+            damage, jogador.life_points, jogador.mana_points
+        );
+    }
+
+    else if (main_entity_type == ENEMY){
+        enemy_t inimigo = main_entity.enemy;
+
+        snprintf(
+            log_msg.text, LOG_LENGTH, 
+            "[INFO] Inimigo levou %d de dano\nVida atual do inimigo: %d\n\n",
+            damage, inimigo.life_points
+        );
+    }
+
+    // Pega o mutex para usar a log queue
+    pthread_mutex_lock(&log_queue_mutex);
+
+    // Bota o evento na fila
+    if(IS_ERROR_STATUS(enqueue(logQueue, (node_data_t) log_msg))){
+        fputs("ERROR - function log_damage: Couldn't enqueue log\n", stderr);
+        fflush(stderr);
+        return ERR_DATA;
+    }
+
+    // Devolve o mutex de usar a log queue
+    pthread_mutex_unlock(&log_queue_mutex); 
+
+    // Posta no semáforo da log queue para sinalizar que há mais um evento na fila
+    sem_post(&log_queue_sem);
+
+    return SUCCESS;
+}
+
+// Manda um log de vitória para o logger processar
+status_t log_victory(character_t jogador){
+    // Cria o log
+    log_t log_msg;
+
+    snprintf(
+        log_msg.text, LOG_LENGTH, 
+        "[INFO] Player venceu!!!\nVida atual do Player: %d\tMana atual do Player: %d\n\n",
+        jogador.life_points, jogador.mana_points
+    );
+
+    // Pega o mutex para usar a log queue
+    pthread_mutex_lock(&log_queue_mutex);
+
+    // Bota o evento na fila
+    if(IS_ERROR_STATUS(enqueue(logQueue, (node_data_t) log_msg))){
+        fputs("ERROR - function log_victory: Couldn't enqueue log\n", stderr);
+        fflush(stderr);
+        return ERR_DATA;
+    }
+
+    // Devolve o mutex de usar a log queue
+    pthread_mutex_unlock(&log_queue_mutex); 
+
+    // Posta no semáforo da log queue para sinalizar que há mais um evento na fila
+    sem_post(&log_queue_sem);
+
+    return SUCCESS;
+}
+
+// Manda um log de derrota para o logger processar
+status_t log_defeat(character_t jogador){
+    // Cria o log
+    log_t log_msg;
+
+    snprintf(
+        log_msg.text, LOG_LENGTH, 
+        "[INFO] Player perdeu.\nVida atual do Player: %d\tMana atual do Player: %d\n\n",
+        jogador.life_points, jogador.mana_points
+    );
+
+    // Pega o mutex para usar a log queue
+    pthread_mutex_lock(&log_queue_mutex);
+
+    // Bota o evento na fila
+    if(IS_ERROR_STATUS(enqueue(logQueue, (node_data_t) log_msg))){
+        fputs("ERROR - function log_defeat: Couldn't enqueue log\n", stderr);
+        fflush(stderr);
+        return ERR_DATA;
+    }
+
+    // Devolve o mutex de usar a log queue
+    pthread_mutex_unlock(&log_queue_mutex); 
+
+    // Posta no semáforo da log queue para sinalizar que há mais um evento na fila
+    sem_post(&log_queue_sem);
+
+    return SUCCESS;
+}
+
+// Manda um log de erro para o logger processar
+status_t log_error(const char* file_name, uint32_t line, const char* function_name, const char* error_text){
+    // Cria o log
+    log_t log_msg;
+
+    snprintf(
+        log_msg.text, LOG_LENGTH, 
+        "[ERROR] %s:%d (%s): %s\n\n",
+        file_name, line, function_name, error_text
+    );
+
+    // Pega o mutex para usar a log queue
+    pthread_mutex_lock(&log_queue_mutex);
+
+    // Bota o evento na fila
+    if(IS_ERROR_STATUS(enqueue(logQueue, (node_data_t) log_msg))){
+        fputs("ERROR - function log_error: Couldn't enqueue log\n", stderr);
+        fflush(stderr);
+        return ERR_DATA;
+    }
+
+    // Devolve o mutex de usar a log queue
+    pthread_mutex_unlock(&log_queue_mutex); 
+
+    // Posta no semáforo da log queue para sinalizar que há mais um evento na fila
+    sem_post(&log_queue_sem);
+
+    
 
     return SUCCESS;
 }

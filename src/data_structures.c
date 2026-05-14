@@ -1,4 +1,5 @@
 #include "utils\data_structures.h"
+#include "logger.h"
 
 // Jogo - Métodos 
 
@@ -179,7 +180,7 @@ status_t print_log(log_t log, FILE* file){
 // ---------------- Comparar listas ---------------- 
 // Retorna true em caso do dado estar vazio, retorna false caso contrário
 bool is_data_empty(node_data_t d){
-    return (d.lista == NULL);
+    return (memcmp(&empty_data, &d, sizeof(node_data_t)) == 0);
 }
 
 // ---------------- Comparar listas ---------------- 
@@ -194,8 +195,7 @@ bool compare_list(node_data_t d1, node_data_t d2){
 // Retorna o endereço da lista em caso de sucesso, retorna NULL em caso de fracasso
 linked_list_t* create_linked_list(list_type_t listType){
     if(!(listType >= CHARACTER_TYPE && listType <= LIST_TYPE)){
-        fputs("ERROR - function create_linked_list: Invalid list type\n", stderr);
-        fflush(stderr);
+        LOG_ERROR("Invalid list type");
         return NULL;
     }
 
@@ -204,8 +204,7 @@ linked_list_t* create_linked_list(list_type_t listType){
 
     // Verifica se pôde alocar a memória da lista
     if(newList == NULL){
-        fputs("ERROR - function create_linked_list: Couldn't allocate memory for a new list\n", stderr);
-        fflush(stderr);
+        LOG_ERROR("Couldn't allocate memory for a new list");
         return NULL;
     }
 
@@ -227,11 +226,15 @@ linked_list_t* create_linked_list(list_type_t listType){
 // Insere um novo nó depois do nó com o indíce passado como argumento
 // Insere na cabeça caso passe indíce negativo
 status_t insert_linked_list(linked_list_t* list, node_data_t data, int index){
+    if(list == NULL){
+        LOG_ERROR("Invalid list");
+        return ERR_INVALID_IN;
+    }
+
     // Se o index for igual ou maior que 0
     if(index >= 0){
         if(index >= list->length){
-            fputs("ERROR - function insert_linked_list: Index out of range\n", stderr);
-            fflush(stderr);
+            LOG_ERROR("Index out of range");
             return ERR_INVALID_IN;
         }
 
@@ -240,8 +243,7 @@ status_t insert_linked_list(linked_list_t* list, node_data_t data, int index){
 
         // Verifica se encontrou o local na lista
         if(currentNode == NULL){
-            fputs("ERROR - function insert_linked_list: Couldn't find target node\n", stderr);
-            fflush(stderr);
+            LOG_ERROR("Couldn't find target node");
             return ERR_DATA;
         }
 
@@ -250,8 +252,7 @@ status_t insert_linked_list(linked_list_t* list, node_data_t data, int index){
 
         // Verifica se memória foi alocada ou não para o novo nó
         if(newNode == NULL){
-            fputs("ERROR - function insert_linked_list: Couldn't allocate memory for a new node\n", stderr);
-            fflush(stderr);
+            LOG_ERROR("Couldn't allocate memory for a new node");
             return ERR_MEMORY;
         }
 
@@ -277,8 +278,7 @@ status_t insert_linked_list(linked_list_t* list, node_data_t data, int index){
 
         // Verifica se memória foi alocada ou não para o novo nó
         if(newNode == NULL){
-            fputs("ERROR - function insert_linked_list: Couldn't allocate memory for a new node\n", stderr);
-            fflush(stderr);
+            LOG_ERROR("Couldn't allocate memory for a new node");
             return ERR_MEMORY;
         }
 
@@ -305,9 +305,13 @@ status_t insert_linked_list(linked_list_t* list, node_data_t data, int index){
 
 // ------------ Remoção por índice -------------
 status_t remove_linked_list(linked_list_t* list, int index){
+    if(list == NULL){
+        LOG_ERROR("Invalid list");
+        return ERR_INVALID_IN;
+    }
+
     if(index < 0 || index >= list->length){
-        fputs("ERROR - function remove_linked_list: Index out of range\n", stderr);
-        fflush(stderr);
+        LOG_ERROR("Index out of range");
         return ERR_INVALID_IN;
     }
 
@@ -316,16 +320,14 @@ status_t remove_linked_list(linked_list_t* list, int index){
         // Pega o nó alvo e o nó anterior a ele
         linked_node_t* previousNode = search_linked_list(list, index - 1);
         if(previousNode == NULL){
-            fputs("ERROR - function remove_linked_list: Couldn't find target node\n", stderr);
-            fflush(stderr);
+            LOG_ERROR("Couldn't find target node");
             return ERR_DATA;
         }
         linked_node_t* targetNode = previousNode->next;
 
         if(list->listType == LIST_TYPE){
             if(IS_ERROR_STATUS(delete_linked_list(targetNode->data.lista))){
-                fputs("ERROR - function remove_linked_list: Couldn't delete target node's list\n", stderr);
-                fflush(stderr);
+                LOG_ERROR("Couldn't delete target node's list");
                 return ERR_DATA;
             }
         }
@@ -348,8 +350,7 @@ status_t remove_linked_list(linked_list_t* list, int index){
         linked_node_t* target_node = list->head;
 
         if(target_node == NULL){
-            fputs("ERROR - function remove_linked_list: List head points to NULL\n", stderr);
-            fflush(stderr);
+            LOG_ERROR("List head points to NULL");
             return ERR_DATA;
         }
 
@@ -372,15 +373,22 @@ status_t remove_linked_list(linked_list_t* list, int index){
 // ------------ Pesquisa por índice ------------
 // Retorna o endereço do nó procurado em caso de sucesso, retorna NULL em caso de fracasso
 linked_node_t* search_linked_list(linked_list_t* list, int index){
+    if(list == NULL){
+        LOG_ERROR("Invalid list");
+        return NULL;
+    }
+
     if(index < 0 || index >= list->length){
-        fputs("ERROR - function search_linked_list: Index out of range\n", stderr);
-        fflush(stderr);
-        printf("Index: %d\nList Length: %d\n", index, list->length);
+        LOG_ERROR("Index out of range");
         return NULL;
     }
 
     linked_node_t* currentNode = list->head;
     for(int i = 0; i < index; i++){
+        if(currentNode == NULL){
+            LOG_ERROR("Broken link in the list");
+            return NULL;
+        }
         currentNode = currentNode->next;
     }
 
@@ -390,6 +398,11 @@ linked_node_t* search_linked_list(linked_list_t* list, int index){
 // --------------- Deletar lista --------------- 
 // Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
 status_t delete_linked_list(linked_list_t* list){
+    if(list == NULL){
+        LOG_ERROR("Invalid list");
+        return ERR_INVALID_IN;
+    }
+
     // Se a lista não está vazia, libera cada nó da lista primeiro
     if(list->length != 0){
         // A variável target_node é usada para apontar para os nós que são liberados
@@ -400,8 +413,7 @@ status_t delete_linked_list(linked_list_t* list){
             target_node = current_node;
 
             if(current_node == NULL){
-                fputs("ERROR - function delete_linked_list: current_node points to NULL\n", stderr);
-                fflush(stderr);
+                LOG_ERROR("current_node points to NULL");
                 return ERR_DATA;
             }
 
@@ -410,8 +422,7 @@ status_t delete_linked_list(linked_list_t* list){
 
             if(list->listType == LIST_TYPE){
                 if(IS_ERROR_STATUS(delete_linked_list(target_node->data.lista))){
-                    fputs("ERROR - function delete_linked_list: Couldn't delete target node's list\n", stderr);
-                    fflush(stderr);
+                    LOG_ERROR("Couldn't delete target node's list");
                     return ERR_DATA;
                 }
             }
@@ -428,9 +439,13 @@ status_t delete_linked_list(linked_list_t* list){
 // ------------ Pesquisa por Dado ------------
 // Retorna o indíce do nó em caso de sucesso, retorna -1 em caso de fracasso
 int search_data_linked_list(linked_list_t* list, node_data_t data){
+    if(list == NULL){
+        LOG_ERROR("Invalid list");
+        return -1;
+    }
+
     if(list->length < 1){
-        fputs("ERROR - function search_data_linked_list: Empty list\n", stderr);
-        fflush(stderr);
+        LOG_ERROR("Empty list");
         return -1;
     }
 
@@ -471,13 +486,17 @@ int search_data_linked_list(linked_list_t* list, node_data_t data){
         break;
     
     default:
-        fputs("ERROR - function search_data_linked_list: Invalid list type\n", stderr);
-        fflush(stderr);
+        LOG_ERROR("Invalid list type");
         return -1;
         break;
     }
 
     for(int i = 0; i < list->length; i++){
+        if(currentNode == NULL){
+            LOG_ERROR("Broken link in the list");
+            return -1;
+        }
+
         // Se o personagem do nó for igual ao do argumento, retorna o nó atual
         if(compare(currentNode->data, data)){
             return i;
@@ -494,9 +513,13 @@ int search_data_linked_list(linked_list_t* list, node_data_t data){
 // ------------ Pesquisa por Posição no Tabuleiro ------------
 // Retorna o indíce do nó em caso de sucesso, retorna -1 em caso de fracasso
 int search_position_linked_list(linked_list_t* list, position_t searched_position){
+    if(list == NULL){
+        LOG_ERROR("Invalid list");
+        return -1;
+    }
+
     if(list->length < 1){
-        fputs("ERROR - function search_data_linked_list: Empty list\n", stderr);
-        fflush(stderr);
+        LOG_ERROR("Empty list");
         return -1;
     }
 
@@ -504,6 +527,12 @@ int search_position_linked_list(linked_list_t* list, position_t searched_positio
 
     for(int i = 0; i < list->length; i++){
         position_t current_position;
+
+        if(current_node == NULL){
+            LOG_ERROR("Broken link in the list");
+            return -1;
+        }
+
         switch (list->listType)
         {
         case CHARACTER_TYPE:
@@ -512,21 +541,20 @@ int search_position_linked_list(linked_list_t* list, position_t searched_positio
         
             
         case ENEMY_TYPE:
-            current_position = current_node->data.personagem.position;
+            current_position = current_node->data.inimigo.position;
             break;
         
             
         case ITEM_TYPE:
-            current_position = current_node->data.personagem.position;
+            current_position = current_node->data.item.position;
             break;
         
         case OBSTACLE_TYPE:
-            current_position = current_node->data.personagem.position;
+            current_position = current_node->data.obstaculo.position;
             break;
         
         default:
-            fputs("ERROR - function search_position_linked_list: Invalid list type\n", stderr);
-            fflush(stderr);
+            LOG_ERROR("Invalid list type");
             return -1;
             break;
         }
@@ -546,12 +574,16 @@ int search_position_linked_list(linked_list_t* list, position_t searched_positio
 // ------------ Impressão da Lista ------------
 // Printa cada item da lista
 status_t print_list(linked_list_t* list, FILE* file){
+    if(list == NULL){
+        LOG_ERROR("Invalid list");
+        return ERR_INVALID_IN;
+    }
+
     linked_node_t* current_node = list->head;
     int mode = list->listType;
     for(int i = 0; i < list->length; i++){
         if(current_node == NULL){
-            fputs("ERROR - function print_list: current_node points to NULL\n", stderr);
-            fflush(stderr);
+            LOG_ERROR("Broken link in the list");
             return ERR_DATA;
         }
         switch (mode)
@@ -626,8 +658,7 @@ status_t print_list(linked_list_t* list, FILE* file){
             break;
         
         default:
-            fputs("ERROR - function print_list: Invalid mode\n", stderr);
-            fflush(stderr);
+            LOG_ERROR("Invalid mode");
             return ERR_INVALID_IN;
             break;
         }
@@ -666,39 +697,46 @@ queue_t* create_queue(int listType){
 // ------------ Front ------------
 // Retorna o dado do primeiro elemento em caso de sucesso, não retorna nada em caso de fracasso
 node_data_t front(queue_t* queue){
+    if(queue == NULL){
+        LOG_ERROR("Invalid queue");
+        return empty_data;
+    }
+
     if (queue->length < 1)
     {
-        fputs("ERROR - function front: Empty queue\n", stderr);
-        fflush(stderr);
-        node_data_t emptyData;
-        emptyData.lista = NULL;
-        return emptyData;
+        LOG_ERROR("Empty queue");
+        return empty_data;
     }else if (queue->head == NULL)
     {
-        fputs("ERROR - function front: Queue head points to NULL\n", stderr);
-        fflush(stderr);
-        node_data_t emptyData;
-        emptyData.lista = NULL;
-        return emptyData;
+        LOG_ERROR("Queue head points to NULL");
+        return empty_data;
     }else{
         return queue->head->data;
     }
 }
 
 // ------------ Enqueue ------------
-// Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
 status_t enqueue(queue_t* queue, node_data_t data){
+    if(queue == NULL){
+        LOG_ERROR("Invalid queue");
+        return ERR_INVALID_IN;
+    }
+
     return insert_linked_list((linked_list_t*) queue, data, queue->length - 1);
 }
 
 // ------------ Dequeue ------------
 // Retorna o dado do primeiro elemento em caso de sucesso, não retorna nada em caso de fracasso
 node_data_t dequeue(queue_t* queue){
+    if(queue == NULL){
+        LOG_ERROR("Invalid queue");
+        return empty_data;
+    }
+
     node_data_t result = front(queue);
 
     if(IS_ERROR_STATUS(remove_linked_list((linked_list_t *) queue, 0))){
-        fputs("ERROR - function dequeue: Couldn't remove node from queue\n", stderr);
-        fflush(stderr);
+        LOG_ERROR("Couldn't remove node from queue");
     }
     
     return result;
@@ -707,12 +745,21 @@ node_data_t dequeue(queue_t* queue){
 // ------------ Impressão da Fila ------------
 // Printa cada item da Fila
 status_t print_queue(queue_t* queue, FILE* file){
+    if(queue == NULL){
+        LOG_ERROR("Invalid queue");
+        return ERR_INVALID_IN;
+    }
+
     return print_list((linked_list_t*) queue, file);
 }
 
 // --------------- Deletar fila --------------- 
-// Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
 status_t delete_queue(queue_t* queue){
+    if(queue == NULL){
+        LOG_ERROR("Invalid queue");
+        return ERR_INVALID_IN;
+    }
+
     return delete_linked_list((linked_list_t*) queue);
 }
 
@@ -736,20 +783,19 @@ stack_t* create_stack(int listType){
 // ------------ Top ------------
 // Retorna o dado do primeiro elemento em caso de sucesso, não retorna nada em caso de fracasso
 node_data_t top(stack_t* stack){
+    if(stack == NULL){
+        LOG_ERROR("Invalid stack");
+        return empty_data;
+    }
+
     if (stack->length < 1)
     {
-        fputs("ERROR - function top: Empty stack\n", stderr);
-        fflush(stderr);
-        node_data_t emptyData;
-        emptyData.lista = NULL;
-        return emptyData;
+        LOG_ERROR("Empty stack");
+        return empty_data;
     }else if (stack->head == NULL)
     {
-        fputs("ERROR - function top: Stack head points to NULL\n", stderr);
-        fflush(stderr);
-        node_data_t emptyData;
-        emptyData.lista = NULL;
-        return emptyData;
+        LOG_ERROR("Stack head points to NULL");
+        return empty_data;
     }else{
         return stack->head->data;
     }
@@ -757,17 +803,26 @@ node_data_t top(stack_t* stack){
 
 // ------------ Push ------------
 status_t push(stack_t* stack, node_data_t data){
+    if(stack == NULL){
+        LOG_ERROR("Invalid stack");
+        return ERR_INVALID_IN;
+    }
+
     return insert_linked_list((linked_list_t*) stack, data, -1);
 }
 
 // ------------ Pop ------------
 // Retorna o dado do primeiro elemento em caso de sucesso, não retorna nada em caso de fracasso
 node_data_t pop(stack_t* stack){
+    if(stack == NULL){
+        LOG_ERROR("Invalid stack");
+        return empty_data;
+    }
+
     node_data_t result = top(stack);
 
     if(IS_ERROR_STATUS(remove_linked_list((linked_list_t *) stack, 0))){
-        fputs("ERROR - function pop: Couldn't remove node from stack\n", stderr);
-        fflush(stderr);
+        LOG_ERROR("Couldn't remove node from stack");
     }
 
     return result;
@@ -776,11 +831,21 @@ node_data_t pop(stack_t* stack){
 // ------------ Impressão da Fila ------------
 // Printa cada item da Fila
 status_t print_stack(stack_t* stack){
+    if(stack == NULL){
+        LOG_ERROR("Invalid stack");
+        return ERR_INVALID_IN;
+    }
+
     return print_list((linked_list_t*) stack);
 }
 
 // --------------- Deletar pilha --------------- 
 status_t delete_stack(stack_t* stack){
+    if(stack == NULL){
+        LOG_ERROR("Invalid stack");
+        return ERR_INVALID_IN;
+    }
+
     return delete_linked_list((linked_list_t*) stack);
 }
 

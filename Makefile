@@ -1,7 +1,7 @@
 ﻿# Compilador e flags
 CC = gcc
 CFLAGS = -Iinclude -pthread
-LDFLAGS = -pthread
+LDFLAGS = -pthread -std=c11
 
 # Diretórios do projeto
 SRC_DIR = src

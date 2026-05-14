@@ -156,6 +156,9 @@ typedef union node_data_t{
     #endif
 } node_data_t;
 
+// Empty data
+static node_data_t empty_data = {0};
+
 // Jogo - Declaração de Métodos 
 
 #ifdef JOGO
