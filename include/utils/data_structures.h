@@ -24,11 +24,12 @@ typedef struct {
 
 #ifdef JOGO
 #define LINKEDLIST
+#define DOUBLELINKEDLIST
 #define QUEUE
 #endif
 
 #ifdef QUEUE
-#define LINKEDLIST
+#define DOUBLELINKEDLIST
 #endif
 
 #ifdef STACK
@@ -36,7 +37,7 @@ typedef struct {
 #endif
 
 #ifdef DEQUE
-#define LINKEDLIST
+#define DOUBLELINKEDLIST
 #endif
 
 // Jogo - Datatypes
@@ -75,10 +76,15 @@ typedef enum {
 } entity_type_t;
 
 typedef union {
-    character_t character;
-    enemy_t enemy;
-    obstacle_t obstacle;
-    item_t item;
+    character_t *character;
+    enemy_t *enemy;
+    obstacle_t *obstacle;
+    item_t *item;
+} entity_data_t;
+
+typedef struct {
+    entity_data_t data;
+    entity_type_t type;
 } entity_t;
 
 typedef struct action_t {
@@ -112,7 +118,6 @@ typedef union {
 typedef struct {
     event_type_t event_type;
     entity_t main_entity, secundary_entity;
-    entity_type_t main_entity_type, secundary_entity_type;
     auxiliar_event_data_t auxiliar_data;
 } event_t;
 
@@ -131,6 +136,7 @@ typedef enum {
     ITEM_TYPE,
     MOVE_TYPE,
     OBSTACLE_TYPE,
+    ENTITY_TYPE,
     LOG_TYPE,
     #endif
     LIST_TYPE
@@ -141,14 +147,15 @@ typedef enum {
 typedef union node_data_t{
     #ifdef JOGO
     character_t personagem;
-    enemy_t inimigo;
-    item_t item;
-    action_t movimento;
+    enemy_t inimigo; // 1
+    item_t item; // 2
+    action_t movimento; // 3
     obstacle_t obstaculo;
+    entity_t entity;
     #endif
 
     #ifdef LOG
-    log_t log;
+    log_t log; // 6
     #endif
 
     #ifdef LINKEDLIST
@@ -158,6 +165,9 @@ typedef union node_data_t{
 
 // Empty data
 static node_data_t empty_data = {0};
+
+// Datatype de funções de comparação entre nós
+typedef bool (*comparison)(union node_data_t, union node_data_t);
 
 // Jogo - Declaração de Métodos 
 
@@ -197,20 +207,17 @@ typedef struct linked_node_t {
 } linked_node_t;
 
 typedef struct linked_list_t {
-    list_type_t listType; // CHARACTER_TYPE - ENEMY_TYPE - ITEM_TYPE - MOVE_TYPE - LIST_TYPE
+    list_type_t list_type; // CHARACTER_TYPE - ENEMY_TYPE - ITEM_TYPE - MOVE_TYPE - LIST_TYPE
     linked_node_t * head, * tail;
     uint32_t length;
 } linked_list_t;
 
-// Datatype de funções de comparação entre nós
-typedef bool (*comparison)(union node_data_t, union node_data_t);
-
 // Linked List - Declaração de Métodos
 
 bool is_data_empty(node_data_t d);
-bool compare_list(node_data_t d1, node_data_t d2);
-status_t print_list(linked_list_t* list, FILE* file);
-linked_list_t* create_linked_list(list_type_t listType);
+bool compare_linked_list(node_data_t d1, node_data_t d2);
+status_t print_linked_list(linked_list_t* list, FILE* file);
+linked_list_t* create_linked_list(list_type_t list_type);
 status_t insert_linked_list(linked_list_t* list, node_data_t data, int index);
 status_t remove_linked_list(linked_list_t* list, int index);
 linked_node_t* search_linked_list(linked_list_t* list, int index);
@@ -226,18 +233,26 @@ int search_position_linked_list(linked_list_t* list, position_t position_searche
 
 // Double Linked List - Datatypes
 
-typedef struct double_linked_node_t {
+typedef struct d_linked_node_t {
     node_data_t data;
-    struct double_linked_node_t * next, * previous;
-} double_linked_node_t;
+    struct d_linked_node_t * next, * previous;
+} d_linked_node_t;
 
-typedef struct doubleLinkedList {
-    list_type_t listType; // CHARACTER_TYPE - ENEMY_TYPE - ITEM_TYPE - MOVE_TYPE - LIST_TYPE
-    linked_node_t * head, * tail;
+typedef struct d_linked_list_t {
+    list_type_t list_type;
+    d_linked_node_t * head, * tail;
     uint32_t length;
-} doubleLinkedList_t;
+} d_linked_list_t;
 
+// Linked List - Declaração de Métodos
 
+status_t print_d_linked_list(d_linked_list_t* list, FILE* file);
+d_linked_list_t* create_d_linked_list(list_type_t listType);
+status_t insert_d_linked_list(d_linked_list_t* list, node_data_t data, d_linked_node_t *node);
+status_t remove_d_linked_list(d_linked_list_t* list, d_linked_node_t *node);
+d_linked_node_t* search_d_linked_list(d_linked_list_t* list, int index);
+status_t delete_d_linked_list(d_linked_list_t* list);
+d_linked_node_t *search_position_d_linked_list(d_linked_list_t* list, position_t position_searched);
 
 #endif
 
@@ -247,7 +262,7 @@ typedef struct doubleLinkedList {
 
 // Queue - Datatypes
 
-typedef linked_list_t queue_t;
+typedef d_linked_list_t queue_t;
 
 // Queue - Declaração de Métodos
 

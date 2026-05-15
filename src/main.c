@@ -1,8 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <math.h>
 #include <windows.h>
 #include <time.h>
 #include <pthread.h>
@@ -36,7 +33,7 @@ char** board;
 int boardSize;
 extern char keyboard_input;
 character_t* player;
-linked_list_t *enemyList, *itemList, *obstacleList;
+d_linked_list_t *enemyList, *itemList, *obstacleList;
 queue_t *moveQueue, *logQueue;
 
 // Threads
@@ -70,9 +67,9 @@ status_t finalizar_programa();
 
 int main(){
     // Inicializa as estruturas de dados
-    enemyList = create_linked_list(ENEMY_TYPE);
-    itemList = create_linked_list(ITEM_TYPE);
-    obstacleList = create_linked_list(OBSTACLE_TYPE);
+    enemyList = create_d_linked_list(ENEMY_TYPE);
+    itemList = create_d_linked_list(ITEM_TYPE);
+    obstacleList = create_d_linked_list(OBSTACLE_TYPE);
     moveQueue = create_queue(MOVE_TYPE);
     logQueue = create_queue(LOG_TYPE);
 
@@ -377,7 +374,7 @@ status_t adicionar_comando_fila(queue_t *fila, char acao, char direcao){
 
 // Processa o próximo movimento na fila
 status_t processar_comando_fila(queue_t *fila){
-    if(fila->length > 1){
+    if(fila->length < 1){
         LOG_ERROR("Empty queue");
         return ACTION_SKIPPED;
     }
@@ -450,17 +447,17 @@ status_t finalizar_programa(){
         player = NULL;
     }
 
-    if(IS_ERROR_STATUS(delete_linked_list(enemyList))){
+    if(IS_ERROR_STATUS(delete_d_linked_list(enemyList))){
         LOG_ERROR("Couldn't delete enemy list");
         return ERR_DATA;
     }
 
-    if(IS_ERROR_STATUS(delete_linked_list(itemList))){
+    if(IS_ERROR_STATUS(delete_d_linked_list(itemList))){
         LOG_ERROR("Couldn't delete item list");
         return ERR_DATA;
     }
 
-    if(IS_ERROR_STATUS(delete_linked_list(obstacleList))){
+    if(IS_ERROR_STATUS(delete_d_linked_list(obstacleList))){
         LOG_ERROR("Couldn't delete obstacle list");
         return ERR_DATA;
     }

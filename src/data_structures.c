@@ -1,6 +1,12 @@
 #include "utils\data_structures.h"
 #include "logger.h"
 
+// ---------------- Verificar se dado está vazio ---------------- 
+// Retorna true em caso do dado estar vazio, retorna false caso contrário
+bool is_data_empty(node_data_t d){
+    return (memcmp(&empty_data, &d, sizeof(node_data_t)) == 0);
+}
+
 // Jogo - Métodos 
 
 #ifdef JOGO
@@ -178,14 +184,8 @@ status_t print_log(log_t log, FILE* file){
 // ---- Métodos Básicos ----
 
 // ---------------- Comparar listas ---------------- 
-// Retorna true em caso do dado estar vazio, retorna false caso contrário
-bool is_data_empty(node_data_t d){
-    return (memcmp(&empty_data, &d, sizeof(node_data_t)) == 0);
-}
-
-// ---------------- Comparar listas ---------------- 
 // Retorna true em caso das listas forem as mesmas, retorna false caso contrário
-bool compare_list(node_data_t d1, node_data_t d2){
+bool compare_linked_list(node_data_t d1, node_data_t d2){
     linked_list_t* l1 = d1.lista;
     linked_list_t* l2 = d2.lista;
     return (l1 == l2);
@@ -193,33 +193,33 @@ bool compare_list(node_data_t d1, node_data_t d2){
 
 // ---------------- Criar lista ---------------- 
 // Retorna o endereço da lista em caso de sucesso, retorna NULL em caso de fracasso
-linked_list_t* create_linked_list(list_type_t listType){
-    if(!(listType >= CHARACTER_TYPE && listType <= LIST_TYPE)){
+linked_list_t* create_linked_list(list_type_t list_type){
+    if(!(list_type >= CHARACTER_TYPE && list_type <= LIST_TYPE)){
         LOG_ERROR("Invalid list type");
         return NULL;
     }
 
     // Aloca o espaço na memória para uma nova lista
-    linked_list_t* newList = (linked_list_t*) malloc(sizeof(linked_list_t));
+    linked_list_t* new_list = (linked_list_t*) malloc(sizeof(linked_list_t));
 
     // Verifica se pôde alocar a memória da lista
-    if(newList == NULL){
+    if(new_list == NULL){
         LOG_ERROR("Couldn't allocate memory for a new list");
         return NULL;
     }
 
     // A nova lista é iniciada com tamanho 0
-    newList->length = 0;
+    new_list->length = 0;
 
     // A nova lista é iniciada com a cabeça e a cauda apontada para NULL
-    newList->head = NULL;
-    newList->tail = NULL;
+    new_list->head = NULL;
+    new_list->tail = NULL;
 
     // Define o tipo da lista
-    newList->listType = listType;
+    new_list->list_type = list_type;
 
     // Retorna a nova lista
-    return newList;
+    return new_list;
 }
 
 // ------------ Inserção por índice ------------
@@ -304,6 +304,7 @@ status_t insert_linked_list(linked_list_t* list, node_data_t data, int index){
 }
 
 // ------------ Remoção por índice -------------
+// Remove o nó com o indíce passado como argumento
 status_t remove_linked_list(linked_list_t* list, int index){
     if(list == NULL){
         LOG_ERROR("Invalid list");
@@ -325,7 +326,7 @@ status_t remove_linked_list(linked_list_t* list, int index){
         }
         linked_node_t* targetNode = previousNode->next;
 
-        if(list->listType == LIST_TYPE){
+        if(list->list_type == LIST_TYPE){
             if(IS_ERROR_STATUS(delete_linked_list(targetNode->data.lista))){
                 LOG_ERROR("Couldn't delete target node's list");
                 return ERR_DATA;
@@ -367,7 +368,7 @@ status_t remove_linked_list(linked_list_t* list, int index){
     }
 
     list->length--;
-    return 1;
+    return SUCCESS;
 }
 
 // ------------ Pesquisa por índice ------------
@@ -396,7 +397,7 @@ linked_node_t* search_linked_list(linked_list_t* list, int index){
 }
 
 // --------------- Deletar lista --------------- 
-// Retorna 1 em caso de sucesso, retorna 0 em caso de fracasso
+// Deleta a lista
 status_t delete_linked_list(linked_list_t* list){
     if(list == NULL){
         LOG_ERROR("Invalid list");
@@ -420,7 +421,7 @@ status_t delete_linked_list(linked_list_t* list){
             // current_node avança
             current_node = current_node->next;
 
-            if(list->listType == LIST_TYPE){
+            if(list->list_type == LIST_TYPE){
                 if(IS_ERROR_STATUS(delete_linked_list(target_node->data.lista))){
                     LOG_ERROR("Couldn't delete target node's list");
                     return ERR_DATA;
@@ -433,7 +434,7 @@ status_t delete_linked_list(linked_list_t* list){
     }
 
     free(list);
-    return 1;
+    return SUCCESS;
 }
 
 // ------------ Pesquisa por Dado ------------
@@ -453,7 +454,7 @@ int search_data_linked_list(linked_list_t* list, node_data_t data){
 
     comparison compare;
 
-    switch (list->listType)
+    switch (list->list_type)
     {
     #ifdef JOGO
     case CHARACTER_TYPE:
@@ -482,7 +483,7 @@ int search_data_linked_list(linked_list_t* list, node_data_t data){
     #endif
         
     case LIST_TYPE:
-        compare = compare_list;
+        compare = compare_linked_list;
         break;
     
     default:
@@ -509,78 +510,16 @@ int search_data_linked_list(linked_list_t* list, node_data_t data){
     return -1;
 }
 
-#ifdef JOGO
-// ------------ Pesquisa por Posição no Tabuleiro ------------
-// Retorna o indíce do nó em caso de sucesso, retorna -1 em caso de fracasso
-int search_position_linked_list(linked_list_t* list, position_t searched_position){
-    if(list == NULL){
-        LOG_ERROR("Invalid list");
-        return -1;
-    }
-
-    if(list->length < 1){
-        LOG_ERROR("Empty list");
-        return -1;
-    }
-
-    linked_node_t* current_node = list->head;
-
-    for(int i = 0; i < list->length; i++){
-        position_t current_position;
-
-        if(current_node == NULL){
-            LOG_ERROR("Broken link in the list");
-            return -1;
-        }
-
-        switch (list->listType)
-        {
-        case CHARACTER_TYPE:
-            current_position = current_node->data.personagem.position;
-            break;
-        
-            
-        case ENEMY_TYPE:
-            current_position = current_node->data.inimigo.position;
-            break;
-        
-            
-        case ITEM_TYPE:
-            current_position = current_node->data.item.position;
-            break;
-        
-        case OBSTACLE_TYPE:
-            current_position = current_node->data.obstaculo.position;
-            break;
-        
-        default:
-            LOG_ERROR("Invalid list type");
-            return -1;
-            break;
-        }
-
-        // Se a posição atual for igual a procurada retorna i
-        if(compare_position(current_position, searched_position) == 1) return i;
-
-        // Se não passa pro próximo nó
-        current_node = current_node->next;
-    }
-
-    return -1;
-}
-
-#endif
-
 // ------------ Impressão da Lista ------------
 // Printa cada item da lista
-status_t print_list(linked_list_t* list, FILE* file){
+status_t print_linked_list(linked_list_t* list, FILE* file){
     if(list == NULL){
         LOG_ERROR("Invalid list");
         return ERR_INVALID_IN;
     }
 
     linked_node_t* current_node = list->head;
-    int mode = list->listType;
+    int mode = list->list_type;
     for(int i = 0; i < list->length; i++){
         if(current_node == NULL){
             LOG_ERROR("Broken link in the list");
@@ -629,7 +568,7 @@ status_t print_list(linked_list_t* list, FILE* file){
 
             fprintf(file, "Lista de ");
 
-            switch (current_list->listType)
+            switch (current_list->list_type)
             {
             case CHARACTER_TYPE:
                 fprintf(file, "personagem\n");
@@ -669,13 +608,472 @@ status_t print_list(linked_list_t* list, FILE* file){
     return SUCCESS;
 }
 
+// ---- Métodos Específicos ----
+
+#ifdef JOGO
+// ------------ Pesquisa por Posição no Tabuleiro ------------
+// Retorna o indíce do nó em caso de sucesso, retorna -1 em caso de fracasso
+int search_position_linked_list(linked_list_t* list, position_t searched_position){
+    if(list == NULL){
+        LOG_ERROR("Invalid list");
+        return -1;
+    }
+
+    if(list->length < 1){
+        LOG_ERROR("Empty list");
+        return -1;
+    }
+
+    linked_node_t* current_node = list->head;
+
+    for(int i = 0; i < list->length; i++){
+        position_t current_position;
+
+        if(current_node == NULL){
+            LOG_ERROR("Broken link in the list");
+            return -1;
+        }
+
+        switch (list->list_type)
+        {
+        case CHARACTER_TYPE:
+            current_position = current_node->data.personagem.position;
+            break;
+        
+            
+        case ENEMY_TYPE:
+            current_position = current_node->data.inimigo.position;
+            break;
+        
+            
+        case ITEM_TYPE:
+            current_position = current_node->data.item.position;
+            break;
+        
+        case OBSTACLE_TYPE:
+            current_position = current_node->data.obstaculo.position;
+            break;
+        
+        default:
+            LOG_ERROR("Invalid list type");
+            return -1;
+            break;
+        }
+
+        // Se a posição atual for igual a procurada retorna i
+        if(compare_position(current_position, searched_position) == 1) return i;
+
+        // Se não passa pro próximo nó
+        current_node = current_node->next;
+    }
+
+    return -1;
+}
+
+#endif
+
+
 #endif
 
 // Double Linked List - Métodos
 
 #ifdef DOUBLELINKEDLIST
 
+// Linked List - Declaração de Métodos
 
+// ------------ Impressão da Lista ------------
+// Printa cada item da lista
+status_t print_d_linked_list(d_linked_list_t* list, FILE* file){
+    if(list == NULL){
+        LOG_ERROR("Invalid list");
+        return ERR_INVALID_IN;
+    }
+
+    d_linked_node_t* current_node = list->head;
+    int mode = list->list_type;
+    for(int i = 0; i < list->length; i++){
+        if(current_node == NULL){
+            LOG_ERROR("Broken link in the list");
+            return ERR_DATA;
+        }
+        switch (mode)
+        {
+        #ifdef JOGO
+
+        case CHARACTER_TYPE:
+            fprintf(file, "\nPersonagem  %d\n", i + 1);
+
+            print_character(current_node->data.personagem, file);
+            break;
+        
+        case ENEMY_TYPE:
+            fprintf(file, "\nInimigo  %d\n", i + 1);
+
+            print_enemy(current_node->data.inimigo, file);
+            break;
+        
+        case ITEM_TYPE:
+            fprintf(file, "\nItem  %d\n", i + 1);
+
+            print_item(current_node->data.item, file);
+            break;
+        
+        case MOVE_TYPE:
+            fprintf(file, "\nMovimento  %d\n", i + 1);
+
+            print_move(current_node->data.movimento, file);
+            break;
+            
+        case OBSTACLE_TYPE:
+            fprintf(file, "\nObstaculo  %d\n", i + 1);
+
+            print_obstacle(current_node->data.obstaculo, file);
+            break;
+
+        #endif
+        
+        case LIST_TYPE:
+            fprintf(file, "\nLista  %d\n", i + 1);
+
+            linked_list_t* current_list = current_node->data.lista;
+
+            fprintf(file, "Lista de ");
+
+            switch (current_list->list_type)
+            {
+            case CHARACTER_TYPE:
+                fprintf(file, "personagem\n");
+                break;
+            
+            case ENEMY_TYPE:
+                fprintf(file, "inimigo\n");
+                break;
+            
+            case ITEM_TYPE:
+                fprintf(file, "item\n");
+                break;
+            
+            case MOVE_TYPE:
+                fprintf(file, "movimento\n");
+                break;
+            
+            case LIST_TYPE:
+                fprintf(file, "lista\n");
+                break;
+            
+            default:
+                break;
+            }
+
+            break;
+        
+        default:
+            LOG_ERROR("Invalid mode");
+            return ERR_INVALID_IN;
+            break;
+        }
+
+        current_node = current_node->next;
+    }
+
+    return SUCCESS;
+}
+
+// ---------------- Criar lista ---------------- 
+// Retorna o endereço da lista em caso de sucesso, retorna NULL em caso de fracasso
+d_linked_list_t* create_d_linked_list(list_type_t list_type){
+    if(!(list_type >= CHARACTER_TYPE && list_type <= LIST_TYPE)){
+        LOG_ERROR("Invalid list type");
+        return NULL;
+    }
+
+    // Aloca o espaço na memória para uma nova lista
+    d_linked_list_t* new_list = (d_linked_list_t*) malloc(sizeof(d_linked_list_t));
+
+    // Verifica se pôde alocar a memória da lista
+    if(new_list == NULL){
+        LOG_ERROR("Couldn't allocate memory for a new list");
+        return NULL;
+    }
+
+    // A nova lista é iniciada com tamanho 0
+    new_list->length = 0;
+
+    // A nova lista é iniciada com a cabeça e a cauda apontada para NULL
+    new_list->head = NULL;
+    new_list->tail = NULL;
+
+    // Define o tipo da lista
+    new_list->list_type = list_type;
+
+    // Retorna a nova lista
+    return new_list;
+}
+
+// ------------ Inserção por índice ------------
+// Insere um novo nó depois do nó passado como argumento
+// Insere na cabeça caso passe NULL como argumento
+status_t insert_d_linked_list(d_linked_list_t* list, node_data_t data, d_linked_node_t *node){
+    if(list == NULL){
+        printf("Invalid list");
+        return ERR_INVALID_IN;
+    }
+
+    // Se o nó passado no argumento for NULL, insere no início
+    if(node == NULL){
+        // O espaço para o novo nó é alocado
+        d_linked_node_t* new_node = (d_linked_node_t*) malloc(sizeof(d_linked_node_t));
+
+        // Verifica se memória foi alocada ou não para o novo nó
+        if(new_node == NULL){
+            printf("Couldn't allocate memory for a new node");
+            return ERR_MEMORY;
+        }
+
+        // Os dados são postos no novo nó
+        new_node->data = data;
+
+        // Seta os nós anterior e posterior ao novo nó
+        d_linked_node_t* next_node = list->head;
+
+        // O novo nó aponta como próximo para onde a cabeça apontava
+        new_node->next = next_node;
+        // e aponta para NULL como anterior
+        new_node->previous = NULL;
+
+        // O novo nó se torna a cabeça
+        list->head = new_node;
+        // O posterior aponta como anterior para o novo nó, se houver um
+        if(next_node != NULL){
+            next_node->previous = new_node;
+        }
+
+        // Se a cauda apontar para NULL, ou seja lista vazia, cauda aponta pro novo nó
+        if(list->tail == NULL){
+            list->tail = new_node;
+        }
+    }
+
+    // Se o nó passado no argumento não for NULL, então:
+    else{
+        // O espaço para o novo nó é alocado
+        d_linked_node_t* new_node = (d_linked_node_t*) malloc(sizeof(d_linked_node_t));
+
+        // Verifica se memória foi alocada ou não para o novo nó
+        if(new_node == NULL){
+            printf("Couldn't allocate memory for a new node");
+            return ERR_MEMORY;
+        }
+
+        // Os dados são postos no novo nó
+        new_node->data = data;
+
+        // Seta os nós anterior e posterior ao novo nó
+        d_linked_node_t* next_node = node->next;
+        d_linked_node_t* previous_node = node;
+
+        // O novo nó aponta como próximo onde seu antecessor apontava como próximo
+        new_node->next = next_node;
+        // e aponta como anterior para seu antecessor
+        new_node->previous = previous_node;
+
+        // O antecessor aponta como próximo para o novo nó
+        previous_node->next = new_node;
+        // O posterior aponta como anterior para o novo nó
+        if(next_node != NULL){
+            next_node->previous = new_node;
+        }
+
+        // Se a cauda era o antecessor, o novo nó se torna a cauda
+        if(list->tail == node){
+            list->tail = new_node;
+        }
+    }
+
+    // O tamanho da lista aumenta em um
+    list->length++;
+
+    return SUCCESS;
+}
+
+// ------------ Remoção por índice -------------
+// Remove o nó passado como argumento
+status_t remove_d_linked_list(d_linked_list_t* list, d_linked_node_t *node){
+    if(list == NULL){
+        LOG_ERROR("Invalid list");
+        return ERR_INVALID_IN;
+    }
+
+    if(list->length < 1){
+        LOG_ERROR("No itens in the list");
+        return ERR_RESOURCES;
+    }
+
+    if(node == NULL){
+        LOG_ERROR("Invalid node");
+        return ERR_INVALID_IN;
+    }
+
+    // Pega o nó posterior e o nó anterior ao alvo
+    d_linked_node_t* previous_node = node->previous;
+    d_linked_node_t* next_node = node->next;
+
+    // Caso o nó anterior é NULL, o alvo é a cabeça
+    if(list->head == node){
+        list->head = next_node;
+    }
+    // Caso o nó anterior é um nó legítimo, então ele apontará pro nó posterior ao alvo como próximo
+    else if(previous_node != NULL){
+        previous_node->next = next_node;
+    }
+
+    // Caso o nó posterior é NULL, o alvo é a cauda
+    if(list->tail == node){
+        list->tail = previous_node;
+    }
+    // Caso o nó posterior é um nó legítimo, então ele apontará pro nó anterior ao alvo como anterior a ele
+    else if(next_node != NULL){
+        next_node->previous = previous_node;
+    }
+
+    // Libera o nó
+    free(node);
+
+    list->length--;
+
+    return SUCCESS;
+}
+
+// ------------ Pesquisa por índice ------------
+// Retorna o endereço do nó procurado em caso de sucesso, retorna NULL em caso de fracasso
+d_linked_node_t* search_d_linked_list(d_linked_list_t* list, int index){
+    if(list == NULL){
+        LOG_ERROR("Invalid list");
+        return NULL;
+    }
+
+    if(index < 0 || index >= list->length){
+        LOG_ERROR("Index out of range");
+        return NULL;
+    }
+
+    d_linked_node_t* current_node = NULL;
+
+
+    current_node = list->head;
+    for(int i = 0; i < index; i++){
+        if(current_node == NULL){
+            LOG_ERROR("Broken link in the list");
+            return NULL;
+        }
+        current_node = current_node->next;
+    }
+
+    return current_node;
+}
+
+// --------------- Deletar lista --------------- 
+// Deleta a lista
+status_t delete_d_linked_list(d_linked_list_t* list){
+    if(list == NULL){
+        LOG_ERROR("Invalid list");
+        return ERR_INVALID_IN;
+    }
+
+    // Se a lista não está vazia, libera cada nó da lista primeiro
+    if(list->length != 0){
+        // A variável target_node é usada para apontar para os nós que são liberados
+        // e current_node é usada para percorrer a lista
+        d_linked_node_t* target_node, * current_node = list->head;
+        for(int i = 0; i < list->length; i++){
+            // O nó a ser liberado é o nó atual
+            target_node = current_node;
+
+            if(current_node == NULL){
+                LOG_ERROR("current_node points to NULL");
+                return ERR_DATA;
+            }
+
+            // current_node avança
+            current_node = current_node->next;
+
+            if(list->list_type == LIST_TYPE){
+                if(IS_ERROR_STATUS(delete_linked_list(target_node->data.lista))){
+                    LOG_ERROR("Couldn't delete target node's list");
+                    return ERR_DATA;
+                }
+            }
+
+            // O nó é liberado
+            free(target_node);
+        }
+    }
+
+    free(list);
+    return SUCCESS;
+}
+
+// ---- Métodos Específicos ----
+
+#ifdef JOGO
+// ------------ Pesquisa por Posição no Tabuleiro ------------
+// Retorna o indíce do nó em caso de sucesso, retorna -1 em caso de fracasso
+d_linked_node_t *search_position_d_linked_list(d_linked_list_t* list, position_t position_searched){
+    if(list == NULL){
+        LOG_ERROR("Invalid list");
+        return NULL;
+    }
+
+    if(list->length < 1){
+        LOG_ERROR("Empty list");
+        return NULL;
+    }
+
+    d_linked_node_t* current_node = list->head;
+
+    for(int i = 0; i < list->length; i++){
+        position_t current_position;
+
+        if(current_node == NULL){
+            LOG_ERROR("Broken link in the list");
+            return NULL;
+        }
+
+        switch (list->list_type)
+        {
+        case CHARACTER_TYPE:
+            current_position = current_node->data.personagem.position;
+            break;
+        
+            
+        case ENEMY_TYPE:
+            current_position = current_node->data.inimigo.position;
+            break;
+        
+        case ITEM_TYPE:
+            current_position = current_node->data.item.position;
+            break;
+        
+        case OBSTACLE_TYPE:
+            current_position = current_node->data.obstaculo.position;
+            break;
+        
+        default:
+            LOG_ERROR("Invalid list type");
+            return NULL;
+            break;
+        }
+
+        // Se a posição atual for igual a procurada retorna i
+        if(compare_position(current_position, position_searched) == 1) return current_node;
+
+        // Se não passa pro próximo nó
+        current_node = current_node->next;
+    }
+
+    return NULL;
+}
+#endif
 
 #endif
 
@@ -688,7 +1086,7 @@ status_t print_list(linked_list_t* list, FILE* file){
 // ------------ Criar fila ------------
 // Retorna a fila criada em caso de sucesso, retorna NULL em caso de fracasso
 queue_t* create_queue(int listType){
-    queue_t* newQueue = (queue_t*) create_linked_list(listType);
+    queue_t* newQueue = (queue_t*) create_d_linked_list(listType);
 
     // Retorna a nova fila
     return newQueue;
@@ -706,11 +1104,15 @@ node_data_t front(queue_t* queue){
     {
         LOG_ERROR("Empty queue");
         return empty_data;
-    }else if (queue->head == NULL)
+    }
+    
+    else if (queue->head == NULL)
     {
         LOG_ERROR("Queue head points to NULL");
         return empty_data;
-    }else{
+    }
+    
+    else{
         return queue->head->data;
     }
 }
@@ -722,7 +1124,7 @@ status_t enqueue(queue_t* queue, node_data_t data){
         return ERR_INVALID_IN;
     }
 
-    return insert_linked_list((linked_list_t*) queue, data, queue->length - 1);
+    return insert_d_linked_list((d_linked_list_t*) queue, data, queue->tail);
 }
 
 // ------------ Dequeue ------------
@@ -735,7 +1137,7 @@ node_data_t dequeue(queue_t* queue){
 
     node_data_t result = front(queue);
 
-    if(IS_ERROR_STATUS(remove_linked_list((linked_list_t *) queue, 0))){
+    if(IS_ERROR_STATUS(remove_d_linked_list((d_linked_list_t *) queue, queue->head))){
         LOG_ERROR("Couldn't remove node from queue");
     }
     
@@ -750,7 +1152,7 @@ status_t print_queue(queue_t* queue, FILE* file){
         return ERR_INVALID_IN;
     }
 
-    return print_list((linked_list_t*) queue, file);
+    return print_d_linked_list((d_linked_list_t*) queue, file);
 }
 
 // --------------- Deletar fila --------------- 
@@ -760,7 +1162,7 @@ status_t delete_queue(queue_t* queue){
         return ERR_INVALID_IN;
     }
 
-    return delete_linked_list((linked_list_t*) queue);
+    return delete_d_linked_list((d_linked_list_t*) queue);
 }
 
 #endif

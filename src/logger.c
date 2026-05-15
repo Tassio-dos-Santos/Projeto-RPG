@@ -113,13 +113,13 @@ status_t log_item_collected(character_t jogador, item_t item){
 }
 
 // Manda um log de combate para o logger processar
-status_t log_combat(entity_t main_entity, entity_t secundary_entity, entity_type_t main_entity_type){
+status_t log_combat(entity_t main_entity, entity_t secundary_entity){
     // Cria o log
     log_t log_msg;
     
-    if(main_entity_type == CHARACTER){
-        character_t jogador = main_entity.character;
-        enemy_t inimigo = secundary_entity.enemy;
+    if(main_entity.type == CHARACTER && secundary_entity.type == ENEMY){
+        character_t jogador = *(main_entity.data.character);
+        enemy_t inimigo = *(secundary_entity.data.enemy);
 
         snprintf(
             log_msg.text, LOG_LENGTH, 
@@ -128,15 +128,20 @@ status_t log_combat(entity_t main_entity, entity_t secundary_entity, entity_type
         );
     }
 
-    else if(main_entity_type == ENEMY){
-        character_t jogador = secundary_entity.character;
-        enemy_t inimigo = main_entity.enemy;
+    else if(main_entity.type == ENEMY && secundary_entity.type == CHARACTER){
+        character_t jogador = *(secundary_entity.data.character);
+        enemy_t inimigo = *(main_entity.data.enemy);
 
         snprintf(
             log_msg.text, LOG_LENGTH, 
             "[INFO] O inimigo combateu o player na posicao: [%d, %d]\nVida atual do Player: %d\tVida atual do inimigo: %d\n\n",
             jogador.position.x, jogador.position.y, jogador.life_points, inimigo.life_points
         );
+    }
+
+    else{
+        LOG_ERROR("Invalid entity types");
+        return ERR_INVALID_IN;
     }
 
     // Pega o mutex para usar a log queue
@@ -208,12 +213,12 @@ status_t log_skill(character_t jogador, skill_t skill){
 }
 
 // Manda um log de dano para o logger processar
-status_t log_damage(entity_t main_entity, entity_type_t main_entity_type, int32_t damage){
+status_t log_damage(entity_t main_entity, int32_t damage){
     // Cria o log
     log_t log_msg;
 
-    if(main_entity_type == CHARACTER){
-        character_t jogador = main_entity.character;
+    if(main_entity.type == CHARACTER){
+        character_t jogador = *(main_entity.data.character);
 
         snprintf(
             log_msg.text, LOG_LENGTH, 
@@ -222,8 +227,8 @@ status_t log_damage(entity_t main_entity, entity_type_t main_entity_type, int32_
         );
     }
 
-    else if (main_entity_type == ENEMY){
-        enemy_t inimigo = main_entity.enemy;
+    else if (main_entity.type == ENEMY){
+        enemy_t inimigo = *(main_entity.data.enemy);
 
         snprintf(
             log_msg.text, LOG_LENGTH, 
@@ -350,6 +355,36 @@ status_t log_warning(const char* file_name, uint32_t line, const char* function_
         log_msg.text, LOG_LENGTH, 
         "[WARNING] %s:%d (%s): %s\n\n",
         file_name, line, function_name, warning_text
+    );
+
+    // Pega o mutex para usar a log queue
+    pthread_mutex_lock(&log_queue_mutex);
+
+    // Bota o evento na fila
+    if(IS_ERROR_STATUS(enqueue(logQueue, (node_data_t) log_msg))){
+        fputs("ERROR - function log_error: Couldn't enqueue log\n", stderr);
+        fflush(stderr);
+        return ERR_DATA;
+    }
+
+    // Devolve o mutex de usar a log queue
+    pthread_mutex_unlock(&log_queue_mutex); 
+
+    // Posta no semáforo da log queue para sinalizar que há mais um evento na fila
+    sem_post(&log_queue_sem);
+
+    return SUCCESS;
+}
+
+// Manda um log de informações de debug para o logger processar
+status_t log_debug(const char* file_name, uint32_t line, const char* function_name, const char* debug_text){
+    // Cria o log
+    log_t log_msg;
+
+    snprintf(
+        log_msg.text, LOG_LENGTH, 
+        "[DEBUG] %s:%d (%s): %s\n\n",
+        file_name, line, function_name, debug_text
     );
 
     // Pega o mutex para usar a log queue

@@ -15,7 +15,7 @@ static char movimento_simples_horizontal(enemy_t i, int dx, int dy);
 // Definição de funções
 // Funções de inicialização
 // Gera inimigos em posições aleatórias na lista de inimigos
-status_t gerar_inimigos(linked_list_t *enemy_list, int quantidade){
+status_t gerar_inimigos(d_linked_list_t *enemy_list, int quantidade){
     for(int i = 0; i < quantidade; i++){
         position_t enemy_position = {0};
 
@@ -39,7 +39,7 @@ status_t gerar_inimigos(linked_list_t *enemy_list, int quantidade){
 }
 
 // Adiciona um inimigo com vida aleatória na posição especificada na lista de inimigos
-status_t adicionar_inimigo(linked_list_t *lista_inimigo, position_t position){
+status_t adicionar_inimigo(d_linked_list_t *lista_inimigo, position_t position){
     if(lista_inimigo == NULL){
         LOG_ERROR("Invalid list");
         return ERR_INVALID_IN;
@@ -55,7 +55,7 @@ status_t adicionar_inimigo(linked_list_t *lista_inimigo, position_t position){
         .position = position
     };
 
-    if(IS_ERROR_STATUS(insert_linked_list(lista_inimigo, (node_data_t) new_enemy, -1))){
+    if(IS_ERROR_STATUS(insert_d_linked_list(lista_inimigo, (node_data_t) new_enemy, NULL))){
         LOG_ERROR("Couldn't add enemy to the list");
         return ERR_DATA;
     }
@@ -68,7 +68,7 @@ status_t adicionar_inimigo(linked_list_t *lista_inimigo, position_t position){
 }
 
 // Funções de processamento
-status_t mover_inimigos(linked_list_t *enemy_list){
+status_t mover_inimigos(d_linked_list_t *enemy_list){
     if(enemy_list == NULL){
         LOG_ERROR("Invalid list");
         return ERR_INVALID_IN;
@@ -88,13 +88,13 @@ status_t mover_inimigos(linked_list_t *enemy_list){
     return SUCCESS;
 }
 
-status_t mover_inimigo(linked_list_t *enemy_list, int index_inimigo){
+status_t mover_inimigo(d_linked_list_t *enemy_list, int index_inimigo){
     if(enemy_list == NULL){
         LOG_ERROR("Invalid list");
         return ERR_INVALID_IN;
     }
 
-    linked_node_t *no_inimigo = search_linked_list(enemy_list, index_inimigo);
+    d_linked_node_t *no_inimigo = search_d_linked_list(enemy_list, index_inimigo);
 
     if(no_inimigo == NULL){
         LOG_ERROR("Invalid argument");

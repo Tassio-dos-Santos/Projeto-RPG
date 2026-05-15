@@ -2,11 +2,11 @@
 
 // Variáveis globais alocadas em main
 extern char **board;
-extern linked_list_t *enemyList, *itemList, *obstacleList;
+extern d_linked_list_t *enemyList, *itemList, *obstacleList;
 extern pthread_mutex_t board_mutex;
 
 // Declaração de funções internas
-static status_t coletar_item(character_t *personagem, linked_list_t *item_list, position_t item_position);
+static status_t coletar_item(character_t *personagem, d_linked_list_t *item_list, position_t item_position);
 static status_t bola_de_fogo(character_t *personagem, char direcao);
 static status_t relampago(character_t *personagem, char direcao);
 static status_t feitico_cura(character_t *personagem);
@@ -115,8 +115,7 @@ status_t mover_personagem(character_t *personagem, char direcao){
     case 'X':
     {
         #ifdef DEBUG
-        int index = search_position_linked_list(obstacleList, next_position);
-        linked_node_t *no_obstaculo = search_linked_list(obstacleList, index);
+        d_linked_node_t *no_obstaculo = search_position_d_linked_list(obstacleList, next_position);
         if(no_obstaculo == NULL){
             LOG_ERROR("Couldn't get obstacle in obstacle list");
             return ERR_DATA;
@@ -145,7 +144,7 @@ status_t mover_personagem(character_t *personagem, char direcao){
 }
 
 // Processa a coleta de um item
-static status_t coletar_item(character_t *personagem, linked_list_t *item_list, position_t item_position){
+static status_t coletar_item(character_t *personagem, d_linked_list_t *item_list, position_t item_position){
     if(is_position_valid(item_position) == false){
         LOG_ERROR("Invalid position");
         return ERR_INVALID_IN;
@@ -161,14 +160,13 @@ static status_t coletar_item(character_t *personagem, linked_list_t *item_list, 
         return ERR_INVALID_IN;
     }
 
-    int index_item = search_position_linked_list(item_list, item_position);
-    linked_node_t* no_item = search_linked_list(item_list, index_item);
+    d_linked_node_t* no_item = search_position_d_linked_list(item_list, item_position);
     if(no_item == NULL){
         LOG_ERROR("Couldn't find item in the list");
         return ERR_DATA;
     }
     item_t item = no_item->data.item;
-    if(IS_ERROR_STATUS(remove_linked_list(item_list, index_item))){
+    if(IS_ERROR_STATUS(remove_d_linked_list(item_list, no_item))){
         LOG_ERROR("Couldn't remove item from list");
         return ERR_DATA;
     }

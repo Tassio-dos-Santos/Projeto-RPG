@@ -18,10 +18,10 @@
 // Declaração de funções expostas
 // Funções de inicialização
 char** inicializar_tabuleiro(int N);
-status_t gerar_itens(linked_list_t *item_list, int quantidade);
-status_t gerar_obstaculos(linked_list_t *lista_obstaculo, int quantidade);
-status_t adicionar_item(linked_list_t *lista_item, position_t position, int valor);
-status_t adicionar_obstaculo(linked_list_t *lista_obstaculo, position_t position);
+status_t gerar_itens(d_linked_list_t *item_list, int quantidade);
+status_t gerar_obstaculos(d_linked_list_t *lista_obstaculo, int quantidade);
+status_t adicionar_item(d_linked_list_t *lista_item, position_t position, int valor);
+status_t adicionar_obstaculo(d_linked_list_t *lista_obstaculo, position_t position);
 
 // Funções de processamento
 status_t atualizar_posicoes();

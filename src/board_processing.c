@@ -4,11 +4,11 @@
 extern char **board;
 extern int boardSize;
 extern character_t *player;
-extern linked_list_t *enemyList, *itemList, *obstacleList;
+extern d_linked_list_t *enemyList, *itemList, *obstacleList;
 extern pthread_mutex_t board_mutex;
 
 // Declaração de funções internas
-static status_t atualizar_posicoes_de_lista(linked_list_t *lista);
+static status_t atualizar_posicoes_de_lista(d_linked_list_t *lista);
 
 // Definição de funções
 // Funções de inicialização
@@ -34,7 +34,7 @@ char** inicializar_tabuleiro(int N){
 }
 
 // Gera itens em posições aleatórias na lista de itens
-status_t gerar_itens(linked_list_t *item_list, int quantidade){
+status_t gerar_itens(d_linked_list_t *item_list, int quantidade){
     for(int i = 0; i < quantidade; i++){
         position_t item_position = {0};
 
@@ -60,7 +60,7 @@ status_t gerar_itens(linked_list_t *item_list, int quantidade){
 }
 
 // Gera obstáculos em posições aleatórias na lista de obstáculos
-status_t gerar_obstaculos(linked_list_t *lista_obstaculo, int quantidade){
+status_t gerar_obstaculos(d_linked_list_t *lista_obstaculo, int quantidade){
     position_t obstacle_position = {0};
 
     for(int i = 0; i < quantidade; i++){
@@ -84,7 +84,7 @@ status_t gerar_obstaculos(linked_list_t *lista_obstaculo, int quantidade){
 }
 
 // Adiciona um item com valor especificado na posição especificada na lista de itens
-status_t adicionar_item(linked_list_t *lista_item, position_t position, int valor){
+status_t adicionar_item(d_linked_list_t *lista_item, position_t position, int valor){
     if(lista_item == NULL){
         LOG_ERROR("Invalid list");
         return ERR_INVALID_IN;
@@ -100,7 +100,7 @@ status_t adicionar_item(linked_list_t *lista_item, position_t position, int valo
         .position = position
     };
 
-    if(IS_ERROR_STATUS(insert_linked_list(lista_item, (node_data_t) new_item, -1))){
+    if(IS_ERROR_STATUS(insert_d_linked_list(lista_item, (node_data_t) new_item, NULL))){
         LOG_ERROR("Couldn't add item to the list");
         return ERR_DATA;
     }
@@ -113,7 +113,7 @@ status_t adicionar_item(linked_list_t *lista_item, position_t position, int valo
 }
 
 // Adiciona um obstaculo posição especificada na lista de obstaculos
-status_t adicionar_obstaculo(linked_list_t *lista_obstaculo, position_t position){
+status_t adicionar_obstaculo(d_linked_list_t *lista_obstaculo, position_t position){
     if(lista_obstaculo == NULL){
         LOG_ERROR("Invalid list");
         return ERR_INVALID_IN;
@@ -128,7 +128,7 @@ status_t adicionar_obstaculo(linked_list_t *lista_obstaculo, position_t position
         .position = position
     };
 
-    if(IS_ERROR_STATUS(insert_linked_list(lista_obstaculo, (node_data_t) new_obstacle, -1))){
+    if(IS_ERROR_STATUS(insert_d_linked_list(lista_obstaculo, (node_data_t) new_obstacle, NULL))){
         LOG_ERROR("Couldn't add obstacle to the list");
         return ERR_DATA;
     }
@@ -183,7 +183,7 @@ status_t atualizar_posicoes(){
 }
 
 // Atualiza o tabuleiro (matriz de caracteres) de acordo com as posições das entidades em uma lista específica
-static status_t atualizar_posicoes_de_lista(linked_list_t *lista){
+static status_t atualizar_posicoes_de_lista(d_linked_list_t *lista){
     if(lista == NULL){
         LOG_ERROR("Invalid list");
         return ERR_INVALID_IN;
@@ -194,7 +194,7 @@ static status_t atualizar_posicoes_de_lista(linked_list_t *lista){
     }
 
     // Começa a percorrer a lista pela cabeça da lista
-    linked_node_t* current_node = lista->head;
+    d_linked_node_t* current_node = lista->head;
     node_data_t current_data;
 
     for(int i = 0; i < lista->length; i++){
@@ -208,7 +208,7 @@ static status_t atualizar_posicoes_de_lista(linked_list_t *lista){
 
         position_t current_position;
 
-        switch (lista->listType){
+        switch (lista->list_type){
         case CHARACTER_TYPE:
             current_position = current_data.personagem.position;
 
@@ -269,15 +269,19 @@ status_t dano_na_entidade(int dano, position_t position){
 
         player->life_points -= dano;
 
-        log_damage((entity_t) *player, CHARACTER, dano);
+        entity_t jogador = {
+            .type = CHARACTER,
+            .data = (entity_data_t) player
+        };
+
+        log_damage(jogador, dano);
 
         return SUCCESS;
         break;
     
     case 'E':
     {
-        int index_inimigo = search_position_linked_list(enemyList, position);
-        linked_node_t* no_inimigo = search_linked_list(enemyList, index_inimigo);
+        d_linked_node_t* no_inimigo = search_position_d_linked_list(enemyList, position);
         if(no_inimigo == NULL){
             LOG_ERROR("Enemy not found on enemy list");
             return ERR_DATA;
@@ -291,7 +295,12 @@ status_t dano_na_entidade(int dano, position_t position){
 
         inimigo->life_points -= dano;
 
-        log_damage((entity_t) *inimigo, ENEMY, dano);
+        entity_t i = {
+            .type = ENEMY,
+            .data = (entity_data_t) inimigo
+        };
+
+        log_damage(i, dano);
         
         if(inimigo->life_points < 1){
             if(IS_ERROR_STATUS(destruir_entidade(position))){
@@ -328,9 +337,8 @@ status_t combate(character_t *personagem, position_t enemy_position, entity_type
     }
 
     // Pega os dados do inimigo e salva localmente, para caso ele seja eliminado da lista
-    int index_inimigo = search_position_linked_list(enemyList, enemy_position);
+    d_linked_node_t *no_inimigo = search_position_d_linked_list(enemyList, enemy_position);
 
-    linked_node_t *no_inimigo = search_linked_list(enemyList, index_inimigo);
     if(no_inimigo == NULL){
         LOG_ERROR("Invalid node");
         return ERR_DATA;
@@ -355,11 +363,21 @@ status_t combate(character_t *personagem, position_t enemy_position, entity_type
     // Dá dano no dado local de inimigo
     inimigo.life_points -= 20;
 
+    entity_t p = {
+        .type = CHARACTER,
+        .data = personagem
+    };
+    
+    entity_t i = {
+        .type = ENEMY,
+        .data = (entity_data_t) &inimigo
+    };
+
     // Caso o atacante seja o player, ele será a main entity do log
-    if(attacker_type == CHARACTER) log_combat((entity_t) *personagem, (entity_t) inimigo, attacker_type);
+    if(attacker_type == CHARACTER) log_combat(p, i);
 
     // Caso o atacante seja o inimigo, ele será a main entity do log
-    else if(attacker_type == ENEMY) log_combat((entity_t) inimigo, (entity_t) *personagem, attacker_type);
+    else if(attacker_type == ENEMY) log_combat(i, p);
     
 
     // Caso os dois fiquem vivos
@@ -391,7 +409,7 @@ status_t destruir_entidade(position_t position){
         return ERR_INVALID_IN;
     }
 
-    linked_list_t* list = NULL;
+    d_linked_list_t* list = NULL;
 
     switch (board[position.y][position.x])
     {
@@ -412,8 +430,8 @@ status_t destruir_entidade(position_t position){
         break;
     }
 
-    int index = search_position_linked_list(list, position);
-    if(IS_ERROR_STATUS(remove_linked_list(list, index))){
+    d_linked_node_t* no_entidade = search_position_d_linked_list(list, position);
+    if(IS_ERROR_STATUS(remove_d_linked_list(list, no_entidade))){
         LOG_ERROR("Couldn't remove entity from list");
         return ERR_DATA;
     }

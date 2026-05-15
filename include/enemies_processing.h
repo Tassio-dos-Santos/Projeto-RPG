@@ -16,11 +16,11 @@
 
 // Declaração de funções expostas
 // Funções de inicialização
-status_t gerar_inimigos(linked_list_t *enemy_list, int quantidade);
-status_t adicionar_inimigo(linked_list_t *lista_inimigo, position_t position);
+status_t gerar_inimigos(d_linked_list_t *enemy_list, int quantidade);
+status_t adicionar_inimigo(d_linked_list_t *lista_inimigo, position_t position);
 
 // Funções de processamento
-status_t mover_inimigos(linked_list_t *enemy_list);
-status_t mover_inimigo(linked_list_t *enemy_list, int index_inimigo);
+status_t mover_inimigos(d_linked_list_t *enemy_list);
+status_t mover_inimigo(d_linked_list_t *enemy_list, int index_inimigo);
 
 #endif
